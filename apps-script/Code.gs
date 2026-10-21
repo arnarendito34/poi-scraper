@@ -783,11 +783,11 @@ function setup() {
   syncHeaders_("Logs", LOG_HEADERS);
   var p = PropertiesService.getScriptProperties();
   var defaults = {
-    GITHUB_OWNER: "RamaIdsan",
+    GITHUB_OWNER: "arnarendito34",
     GITHUB_REPO: "poi-scraper",
     GITHUB_REF: "main",
-    INDEX_BASE: "https://raw.githubusercontent.com/RamaIdsan/poi-scraper/main/admin",
-    ADMIN_EMAILS: "ramaidsan9995@gmail.com",
+    INDEX_BASE: "https://raw.githubusercontent.com/arnarendito34/poi-scraper/main/admin",
+    ADMIN_EMAILS: "renditobloggerspot@gmail.com",
     DEFAULT_QUOTA: "0",
     MAX_PARALLEL: "3"
   };
@@ -933,8 +933,8 @@ function bootstrapAdmin() {
   syncHeaders_("Jobs", JOB_HEADERS);
   syncHeaders_("Logs", LOG_HEADERS);
 
-  var email = String(prop_("ADMIN_EMAILS", "ramaidsan9995@gmail.com")).split(",")[0].trim();
-  if (!email) throw new Error("ADMIN_EMAILS kosong. Jalankan setAdminEmails('ramaidsan9995@gmail.com') dulu.");
+  var email = String(prop_("ADMIN_EMAILS", "renditobloggerspot@gmail.com")).split(",")[0].trim();
+  if (!email) throw new Error("ADMIN_EMAILS kosong. Jalankan setAdminEmails('renditobloggerspot@gmail.com') dulu.");
 
   var res = adminCreateKey_(email, 0);
   Logger.log("============================================================");

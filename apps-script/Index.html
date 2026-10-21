@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POI Scraper Studio</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9',
+              400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490',
+              800: '#155e75', 900: '#164e63'
+            }
+          },
+          keyframes: {
+            ripple: { '0%': { transform: 'scale(0)', opacity: '.45' }, '100%': { transform: 'scale(2.5)', opacity: '0' } },
+            indeterminate: { '0%': { left: '-35%', width: '35%' }, '60%': { left: '100%', width: '25%' }, '100%': { left: '100%', width: '25%' } }
+          },
+          animation: {
+            ripple: 'ripple .6s ease-out forwards',
+            indeterminate: 'indeterminate 1.2s ease-in-out infinite'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,.72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(148,163,184,.30); }
+    .dark .glass { background: rgba(15,23,42,.62); border-color: rgba(51,65,85,.65); }
+    .glass-soft { background: rgba(255,255,255,.55); backdrop-filter: blur(10px); border: 1px solid rgba(148,163,184,.25); }
+    .dark .glass-soft { background: rgba(30,41,59,.45); border-color: rgba(51,65,85,.55); }
+    .grad-brand { background-image: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%); }
+    .text-grad { background: linear-gradient(135deg,#22d3ee,#818cf8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .btn { position: relative; overflow: hidden; border-radius: .75rem; font-weight: 600; transition: filter .15s ease, transform .05s ease; }
+    .btn:active { transform: translateY(1px); }
+    .btn:hover { filter: brightness(1.08); }
+    .ripple-dot { position: absolute; border-radius: 9999px; background: rgba(255,255,255,.6); transform: scale(0); pointer-events: none; }
+    .ms { position: relative; }
+    .ms-panel { max-height: 320px; }
+    .ms-list { max-height: 45vh; overflow: auto; }
+    @media (min-width: 640px) { .ms-list { max-height: 220px; } }
+    .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,.5); border-radius: 9999px; }
+    .terminal { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .spin, .spin svg { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .kpi-dot { width: .5rem; height: .5rem; border-radius: 9999px; display: inline-block; }
+    .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border-radius:9999px; font-size:.72rem; font-weight:600; }
+    /* Fallback: paksa layout mobile saat bug viewport Apps Script (iframe 980px) */
+    html.force-mobile #kpiRow { grid-template-columns: 1fr !important; }
+    html.force-mobile .lg\:grid-cols-2 { grid-template-columns: 1fr !important; }
+    html.force-mobile .sm\:grid-cols-2 { grid-template-columns: 1fr !important; }
+    html.force-mobile .xl\:grid-cols-4 { grid-template-columns: 1fr !important; }
+    html.force-mobile #whoWrap { display: none !important; }
+    html.force-mobile #whoCompact { display: flex !important; }
+    html.force-mobile #mobileTabsBar { display: block !important; }
+    html.force-mobile #jobsTableWrap { display: none !important; }
+    html.force-mobile #jobsCards { display: block !important; }
+    html.force-mobile #usersWrap { display: none !important; }
+    html.force-mobile #usersCards { display: block !important; }
+    html.force-mobile .ms-list { max-height: 45vh !important; }
+    html.force-mobile .ms-done { display: block !important; }
+    html.force-mobile .modal-panel { width: 100% !important; height: 100% !important; max-height: none !important; border-radius: 0 !important; }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+
+<!-- ================= TOASTS ================= -->
+<div id="toasts" class="fixed top-4 right-4 z-[200] space-y-2 w-[min(92vw,360px)]"></div>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginCard" class="min-h-screen flex items-center justify-center p-4">
+  <div class="glass rounded-2xl shadow-2xl w-full max-w-md p-7">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-10 h-10 rounded-xl grad-brand flex items-center justify-center shadow-lg">
+        <i data-lucide="radar" class="w-6 h-6 text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-extrabold tracking-tight">POI Scraper <span class="text-grad">Studio</span></h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Dashboard scraping POI Indonesia &amp; Philippines</p>
+      </div>
+    </div>
+
+    <div class="mt-6" id="gsiWrap">
+      <div id="gsiButton"></div>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-2" id="gsiHint">Masuk dengan Google, atau gunakan API key.</p>
+    </div>
+
+    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-1">API Key</label>
+    <div class="relative">
+      <i data-lucide="key-round" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+      <input id="apiKey" placeholder="poi_xxxxxxxx" autocomplete="off"
+        class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm">
+    </div>
+    <button class="btn grad-brand text-white w-full py-2.5 mt-3" onclick="loginKey()">
+      <span class="inline-flex items-center gap-2"><i data-lucide="log-in" class="w-4 h-4"></i> Masuk</span>
+    </button>
+    <div id="loginMsg" class="msg hidden mt-3 text-sm rounded-lg p-2.5"></div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mt-5 leading-relaxed">
+      Pertama kali (tab <b>Users</b> masih kosong)? Di editor Apps Script jalankan
+      <code class="px-1 rounded bg-slate-200 dark:bg-slate-800">bootstrapAdmin()</code>, buka <b>Execution log</b>,
+      salin <b>API KEY</b>, lalu tempel di atas.
+    </p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <!-- TOPBAR -->
+  <header class="sticky top-0 z-40 backdrop-blur-xl bg-white/75 dark:bg-slate-950/70 border-b border-slate-200/70 dark:border-slate-800/70">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl grad-brand flex items-center justify-center shadow-md shrink-0">
+        <i data-lucide="radar" class="w-5 h-5 text-white"></i>
+      </div>
+      <div class="min-w-0">
+        <div class="font-extrabold leading-tight tracking-tight">POI Scraper <span class="text-grad">Studio</span></div>
+        <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+          <span class="kpi-dot bg-emerald-500" id="sysDot"></span>
+          <span id="sysState">Online</span>
+          <span class="opacity-50">•</span>
+          <span id="lastRefresh">belum disegarkan</span>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <span id="whoCompact" title="" class="sm:hidden w-8 h-8 rounded-full grad-brand text-white text-xs font-bold flex items-center justify-center shrink-0">?</span>
+      <div id="whoWrap" class="hidden sm:flex items-center gap-2 mr-1">
+        <span id="who" class="text-xs font-semibold px-3 py-1.5 rounded-full glass-soft truncate max-w-[240px]">-</span>
+        <span id="quotaBadge" class="chip bg-cyan-500/15 text-cyan-600 dark:text-cyan-300">kuota</span>
+        <span id="ver" class="text-[11px] text-slate-400"></span>
+      </div>
+      <button id="btnTheme" aria-label="Ganti tema" class="btn p-2.5 sm:p-2 rounded-xl glass-soft" title="Ganti tema" onclick="toggleTheme()">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+      </button>
+      <button id="btnRefresh" aria-label="Segarkan data" class="btn p-2.5 sm:p-2 rounded-xl glass-soft" title="Segarkan data" onclick="refreshAll(false)">
+        <i id="btnRefreshIcon" data-lucide="refresh-cw" class="w-4 h-4"></i>
+      </button>
+      <button aria-label="Keluar / ganti API key" class="btn p-2.5 sm:p-2 rounded-xl glass-soft text-rose-500" title="Keluar / ganti API key" onclick="logout()">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="topProgress" class="h-0.5 w-full bg-transparent relative overflow-hidden">
+      <div id="topProgressBar" class="hidden absolute top-0 h-full w-1/3 grad-brand animate-indeterminate"></div>
+    </div>
+  </header>
+
+  <div id="mobileTabsBar" class="md:hidden max-w-7xl mx-auto px-4 pt-3">
+    <div id="mobileTabs" class="inline-flex p-1 rounded-xl glass-soft gap-1 w-full"></div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5 pb-[env(safe-area-inset-bottom)]">
+
+    <!-- KPI -->
+    <section id="kpiRow" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></section>
+
+    <!-- BUILDER -->
+    <section id="secBuilder" class="glass rounded-2xl shadow-xl p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <i data-lucide="wand-sparkles" class="w-5 h-5 text-cyan-500"></i>
+        <h2 class="font-bold">Buat Job Scraping</h2>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-5">
+        <!-- Kolom kiri -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Negara</label>
+            <div id="countryTabs" class="inline-flex p-1 rounded-xl glass-soft gap-1"></div>
+            <select id="country" class="hidden">
+              <option value="indonesia">Indonesia</option>
+              <option value="philippines">Philippines</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Brand / kata kunci</label>
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input id="brand" placeholder="Alfamart (boleh alias: Alfamart | Alfa Mart)" autocomplete="off"
+                class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm">
+            </div>
+            <div id="brandChips" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <p id="brandHint" class="help muted"></p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Level target</label>
+            <div id="levelCards" class="grid grid-cols-2 gap-2"></div>
+            <select id="level" class="hidden"></select>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              Tingkat wilayah yang jadi titik pencarian. Level lebih kecil = hasil lebih lengkap.
+            </p>
+          </div>
+        </div>
+
+        <!-- Kolom kanan -->
+        <div class="space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-slate-500 dark:text-slate-400">Wilayah (bisa pilih banyak)</label>
+              <div class="flex gap-1">
+                <button class="btn text-[11px] px-2 py-1 glass-soft" onclick="selectAllVisible()">Select All</button>
+                <button class="btn text-[11px] px-2 py-1 glass-soft" onclick="clearVisible()">Clear</button>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Provinsi</div>
+                <div id="msProvinsi"></div>
+              </div>
+              <div id="kotaWrap">
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Kota/Kabupaten</div>
+                <div id="msKota"></div>
+              </div>
+            </div>
+            <div id="kecWrap" class="mt-3">
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Kecamatan</div>
+              <div id="msKecamatan"></div>
+            </div>
+            <div id="scopeChips" class="flex flex-wrap gap-1.5 mt-3"></div>
+          </div>
+
+          <details class="glass-soft rounded-xl p-3">
+            <summary class="cursor-pointer font-semibold text-sm flex items-center gap-2">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Konfigurasi Lanjutan
+            </summary>
+            <div class="mt-3 space-y-4">
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Mode cakupan</div>
+                <div id="modeCards" class="grid grid-cols-2 gap-2"></div>
+                <select id="mode" class="hidden">
+                  <option value="unit">Unit terpilih</option>
+                  <option value="expand">Pecah ke unit terkecil</option>
+                </select>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  <b>Unit terpilih</b>: 1 pencarian per unit. <b>Pecah ke unit terkecil</b>: otomatis dipecah ke seluruh
+                  kelurahan/barangay di dalamnya (lebih lengkap, lebih lama).
+                </p>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Tile density</div>
+                <div id="tileCards" class="grid grid-cols-3 gap-2"></div>
+                <select id="tile" class="hidden">
+                  <option value="0">Off</option><option value="1">3x3</option><option value="2">5x5</option>
+                </select>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  Menambah titik pencarian grid tiap target (3x3 = 9, 5x5 = 25). Pakai bila hasil kurang lengkap.
+                </p>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Preset cakupan</div>
+                <div id="presetCards" class="grid grid-cols-3 gap-2"></div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  Mengatur mode, tile, radius, dan filter sekaligus. Wilayah & level tetap pilihan Anda.
+                </p>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Radius geo-filter</div>
+                <div id="radiusCards" class="grid grid-cols-2 gap-2"></div>
+                <input id="radiusManual" type="number" min="1" max="300" placeholder="km (1-300)"
+                  class="hidden w-full mt-2 px-3 py-2 rounded-xl glass-soft text-sm">
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  Auto = per level (provinsi 150 · kota 40 · kecamatan 15 · kelurahan 5 km). Manual untuk override.
+                </p>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Mode pencarian (filter brand)</div>
+                <div id="relevanceCards" class="grid grid-cols-3 gap-2"></div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  <b>Persis</b> = nama harus memuat brand · <b>Mirip</b> = lentur (default) · <b>Longgar</b> = tanpa filter.
+                </p>
+              </div>
+              <label class="flex items-center gap-2 text-sm">
+                <input id="keepNoCoords" type="checkbox" class="accent-cyan-500">
+                Simpan listing tanpa koordinat (tetap diambil, tidak dibuang filter radius)
+              </label>
+            </div>
+          </details>
+
+          <div id="estimateCard" class="rounded-xl p-3 border border-cyan-500/30 bg-cyan-500/10">
+            <div class="flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+              <i data-lucide="calculator" class="w-4 h-4"></i> Live Target Estimator
+            </div>
+            <p id="estimate" class="text-xs mt-1.5 text-slate-600 dark:text-slate-300">Pilih parameter untuk melihat perkiraan.</p>
+          </div>
+
+          <button id="btnSubmit" class="btn grad-brand text-white w-full py-3 text-base" onclick="submitJob(event)">
+            <span class="inline-flex items-center gap-2"><i data-lucide="play" class="w-5 h-5"></i> Mulai Scraping</span>
+          </button>
+          <div id="jobMsg" class="msg hidden text-sm rounded-lg p-2.5"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- JOBS -->
+    <section id="secJobs" class="glass rounded-2xl shadow-xl p-5">
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <i data-lucide="list-checks" class="w-5 h-5 text-indigo-500"></i>
+        <h2 class="font-bold mr-2">Job Saya</h2>
+        <div class="relative flex-1 min-w-[180px]">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input id="jobSearch" placeholder="Cari brand..." class="w-full pl-9 pr-3 py-2 rounded-xl glass-soft text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+        </div>
+        <div id="statusFilter" class="inline-flex p-1 rounded-xl glass-soft gap-1"></div>
+        <button class="btn px-3 py-2 glass-soft text-sm inline-flex items-center gap-2" onclick="refreshAll(false)">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i><span class="hidden sm:inline">Refresh</span>
+        </button>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+        <span id="jobCount">0 job</span>
+        <span>auto-refresh 10 dtk · berikutnya <span id="countdown">10</span> dtk</span>
+      </div>
+      <div id="jobsTableWrap" class="hidden md:block overflow-x-auto scroll-thin">
+        <table class="w-full text-sm" id="jobsTable">
+          <thead>
+            <tr class="text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <th class="py-2 pr-3">Brand</th>
+              <th class="py-2 pr-3">User</th>
+              <th class="py-2 pr-3">Status</th>
+              <th class="py-2 pr-3">Progress</th>
+              <th class="py-2 pr-3">Target</th>
+              <th class="py-2 pr-3">Records</th>
+              <th class="py-2 pr-3">ETA</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="jobsBody"></tbody>
+        </table>
+      </div>
+      <div id="jobsCards" class="md:hidden space-y-3"></div>
+      <div id="jobsEmpty" class="hidden text-center text-sm text-slate-500 dark:text-slate-400 py-8">Belum ada job.</div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="adminBox" class="hidden glass rounded-2xl shadow-xl p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500"></i>
+        <h2 class="font-bold">Admin — API Key &amp; Sistem</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Email user</label>
+          <input id="newEmail" placeholder="email@domain" class="w-full px-3 py-2 rounded-xl glass-soft text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Kuota (0 = unlimited)</label>
+          <input id="newQuota" placeholder="0" class="w-full px-3 py-2 rounded-xl glass-soft text-sm">
+        </div>
+        <div class="flex items-end gap-2">
+          <button class="btn grad-brand text-white px-4 py-2 inline-flex items-center gap-2" onclick="adminCreate()">
+            <i data-lucide="key-round" class="w-4 h-4"></i> Buat / Reset
+          </button>
+          <button class="btn glass-soft px-4 py-2 inline-flex items-center gap-2" onclick="openDiag()">
+            <i data-lucide="stethoscope" class="w-4 h-4"></i> Diagnostik
+          </button>
+        </div>
+      </div>
+      <div id="adminMsg" class="msg hidden text-sm rounded-lg p-2.5 mt-3"></div>
+      <div id="usersWrap" class="hidden md:block mt-4 overflow-x-auto scroll-thin">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <th class="py-2 pr-3">Email</th><th class="py-2 pr-3">Kuota</th><th class="py-2 pr-3">Used</th><th class="py-2 pr-3">Aktif</th><th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="users"></tbody>
+        </table>
+      </div>
+      <div id="usersCards" class="md:hidden space-y-2 mt-3"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div id="modalPreview" class="hidden fixed inset-0 z-[120] p-0 sm:p-4 flex items-start sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Preview Data">
+  <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalPreview')"></div>
+  <div class="modal-panel relative glass rounded-none sm:rounded-2xl w-full h-full sm:h-auto max-w-5xl sm:max-h-[85vh] p-4 sm:p-5 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between mb-3 shrink-0">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="table-2" class="w-4 h-4"></i> Preview Data <span id="previewTitle" class="text-xs text-slate-500 dark:text-slate-400"></span></h3>
+      <button aria-label="Tutup" class="btn p-2 glass-soft" onclick="closeModal('modalPreview')"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div id="previewBody" class="overflow-auto scroll-thin text-xs flex-1 min-h-0"></div>
+  </div>
+</div>
+
+<div id="modalLogs" class="hidden fixed inset-0 z-[120] p-0 sm:p-4 flex items-start sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Logs">
+  <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalLogs')"></div>
+  <div class="modal-panel relative glass rounded-none sm:rounded-2xl w-full h-full sm:h-auto max-w-4xl sm:max-h-[85vh] p-4 sm:p-5 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between mb-3 shrink-0">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="scroll-text" class="w-4 h-4"></i> Logs <span id="logsTitle" class="text-xs text-slate-500 dark:text-slate-400"></span></h3>
+      <div class="flex gap-2">
+        <a id="logsRunLink" class="btn px-3 py-1.5 glass-soft text-xs hidden" target="_blank" href="#">Buka GitHub</a>
+        <button aria-label="Tutup" class="btn p-2 glass-soft" onclick="closeModal('modalLogs')"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+    <pre id="logsBody" class="terminal text-[12px] leading-relaxed bg-slate-950 text-emerald-300 rounded-xl p-4 overflow-auto scroll-thin flex-1 min-h-0"></pre>
+  </div>
+</div>
+
+<div id="modalDiag" class="hidden fixed inset-0 z-[120] p-0 sm:p-4 flex items-start sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Diagnostik Sistem">
+  <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalDiag')"></div>
+  <div class="modal-panel relative glass rounded-none sm:rounded-2xl w-full h-full sm:h-auto max-w-3xl sm:max-h-[85vh] p-4 sm:p-5 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between mb-3 shrink-0">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="stethoscope" class="w-4 h-4"></i> Diagnostik Sistem</h3>
+      <button aria-label="Tutup" class="btn p-2 glass-soft" onclick="closeModal('modalDiag')"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <pre id="diagBody" class="terminal text-[12px] bg-slate-950 text-cyan-200 rounded-xl p-4 overflow-auto scroll-thin flex-1 min-h-0"></pre>
+  </div>
+</div>
+
+<div id="modalDetail" class="hidden fixed inset-0 z-[120] p-0 sm:p-4 flex items-start sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Job Detail">
+  <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalDetail')"></div>
+  <div class="modal-panel relative glass rounded-none sm:rounded-2xl w-full h-full sm:h-auto max-w-4xl sm:max-h-[85vh] p-4 sm:p-5 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between mb-3 shrink-0">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4"></i> Job Detail <span id="detailTitle" class="text-xs text-slate-500 dark:text-slate-400"></span></h3>
+      <div class="flex gap-2">
+        <a id="detailRunLink" class="btn px-3 py-1.5 glass-soft text-xs hidden" target="_blank" href="#">Buka GitHub</a>
+        <button aria-label="Tutup" class="btn p-2 glass-soft" onclick="closeModal('modalDetail')"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+    <div id="detailBody" class="overflow-auto scroll-thin text-sm flex-1 min-h-0"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+var IDENT = { idToken: localStorage.getItem("poi_idtoken") || "", apiKey: localStorage.getItem("poi_apikey") || "" };
+var CONFIG = { index_base: "", oauth_client_id: "" };
+var INDEX = null;
+var ME = null;
+var JOBS = [];
+var FILTER = { q: "", status: "all" };
+var RELEVANCE = "mirip";
+var RADIUS = "auto";
+var PREV_STATUS = {};
+var FIRST_LOAD = true;
+var LAST_REFRESH = null;
+var COUNTDOWN = 10;
+var THEME_KEY = "poi_theme";
+var PENDING_RESTORE = null;
+var MOBILE_TAB = "builder";
+var FORM_KEY = "poi_form_v1";
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" })[c]; }); }
+function num(n){ try { return Number(n || 0).toLocaleString("id-ID"); } catch(e){ return String(n || 0); } }
+function icons(){ try { if (window.lucide) lucide.createIcons(); } catch(e){} }
+function showMsg(el, text, ok){
+  if (!el) return;
+  el.textContent = text;
+  el.className = "msg text-sm rounded-lg p-2.5 " + (ok ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/15 text-rose-600 dark:text-rose-300");
+  el.classList.remove("hidden");
+}
+
+function toast(message, type){
+  var palette = {
+    ok: "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    err: "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300",
+    info: "border-cyan-500/40 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+  };
+  var iconName = type === "ok" ? "check-circle-2" : (type === "err" ? "alert-triangle" : "info");
+  var host = $("toasts");
+  while (host.children.length >= 3){ host.removeChild(host.firstChild); }
+  var el = document.createElement("div");
+  el.className = "glass rounded-xl shadow-xl p-3 flex items-start gap-2 border " + (palette[type] || palette.info);
+  el.innerHTML = '<i data-lucide="' + iconName + '" class="w-4 h-4 mt-0.5 shrink-0"></i>' +
+    '<div class="text-sm flex-1">' + esc(message) + '</div>' +
+    '<button aria-label="Tutup" class="opacity-60 hover:opacity-100 shrink-0"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>';
+  var timer = setTimeout(dismiss, 4200);
+  function dismiss(){
+    clearTimeout(timer);
+    el.style.transition = "opacity .3s";
+    el.style.opacity = "0";
+    setTimeout(function(){ el.remove(); }, 320);
+  }
+  el.querySelector("button").addEventListener("click", dismiss);
+  host.appendChild(el);
+  icons();
+}
+
+function copyText(text, label){
+  try {
+    navigator.clipboard.writeText(text).then(function(){ toast((label || "Disalin") + " ke clipboard", "ok"); });
+  } catch(e){ toast("Gagal menyalin", "err"); }
+}
+
+function notifyJob(title, body, type){
+  // Notifikasi browser tidak tersedia di sandbox Apps Script (iframe tanpa
+  // izin 'notifications'), jadi cukup toast dalam aplikasi.
+  toast(title + (body ? " — " + body : ""), type || "ok");
+}
+function detectTransitions(list){
+  if (FIRST_LOAD){
+    (list || []).forEach(function(j){ PREV_STATUS[j.job_id] = String(j.status || "").toLowerCase(); });
+    FIRST_LOAD = false;
+    return;
+  }
+  (list || []).forEach(function(j){
+    var id = j.job_id;
+    var s = String(j.status || "").toLowerCase();
+    var prev = PREV_STATUS[id];
+    if (prev && prev !== s){
+      if (s === "done") notifyJob("Job selesai: " + j.brand, (j.records || 0) + " records");
+      else if (s === "failed") notifyJob("Job gagal: " + j.brand, j.error || "", "err");
+      else if (s === "paused") notifyJob("Job dijeda: " + j.brand, "", "info");
+      else if (s === "cancelled") notifyJob("Job dibatalkan: " + j.brand, "", "info");
+    }
+    PREV_STATUS[id] = s;
+  });
+}
+
+var MODAL_IDS = ["modalPreview", "modalLogs", "modalDiag", "modalDetail"];
+function openModal(id){
+  var m = $(id);
+  if (!m) return;
+  m.__prevFocus = document.activeElement;
+  m.classList.remove("hidden");
+  icons();
+  var focusable = m.querySelector("button, a[href], input, [tabindex]");
+  if (focusable){ try { focusable.focus(); } catch(e){} }
+}
+function closeModal(id){
+  var m = $(id);
+  if (!m) return;
+  m.classList.add("hidden");
+  if (m.__prevFocus && m.__prevFocus.focus){ try { m.__prevFocus.focus(); } catch(e){} }
+}
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape"){ MODAL_IDS.forEach(closeModal); return; }
+  if (e.key === "Tab"){
+    var open = MODAL_IDS.map($).filter(function(m){ return m && !m.classList.contains("hidden"); })[0];
+    if (!open) return;
+    var f = open.querySelectorAll("button, a[href], input, [tabindex]:not([tabindex='-1'])");
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+});
+
+function humanizeDuration(sec){
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return sec + " dtk";
+  var m = Math.floor(sec / 60), s = sec % 60;
+  if (m < 60) return m + " mnt";
+  var h = Math.floor(m / 60); m = m % 60;
+  return h + " jam " + m + " mnt";
+}
+
+function ripple(ev){
+  var btn = ev && ev.currentTarget ? ev.currentTarget : null;
+  if (!btn) return;
+  var rect = btn.getBoundingClientRect();
+  var d = Math.max(rect.width, rect.height) * 1.2;
+  var dot = document.createElement("span");
+  dot.className = "ripple-dot animate-ripple";
+  dot.style.width = dot.style.height = d + "px";
+  dot.style.left = ((ev.clientX || rect.left) - rect.left - d/2) + "px";
+  dot.style.top = ((ev.clientY || rect.top) - rect.top - d/2) + "px";
+  btn.appendChild(dot);
+  setTimeout(function(){ dot.remove(); }, 650);
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function applyTheme(theme){
+  var useDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark", useDark);
+  var btn = $("btnTheme");
+  if (btn) btn.innerHTML = '<i data-lucide="' + (useDark ? "sun" : "moon") + '" class="w-4 h-4"></i>';
+  icons();
+}
+function toggleTheme(){
+  var stored = localStorage.getItem(THEME_KEY) || "system";
+  var isDark = document.documentElement.classList.contains("dark");
+  var next = isDark ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+/* ============================================================
+   API (TIDAK BERUBAH)
+   ============================================================ */
+function api(action, payload){
+  return new Promise(function(resolve, reject){
+    google.script.run
+      .withSuccessHandler(function(res){
+        if (res && res.ok) resolve(res.data);
+        else reject(new Error(action + " gagal: " + (res && res.error ? res.error : JSON.stringify(res))));
+      })
+      .withFailureHandler(function(err){ reject(err); })
+      .uiCall(action, payload || {}, IDENT);
+  });
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+function initConfig(){
+  google.script.run.withSuccessHandler(function(res){
+    var data = (res && res.ok) ? res.data : {};
+    CONFIG.index_base = data.index_base || "";
+    CONFIG.oauth_client_id = data.oauth_client_id || "";
+    if (data.app_version) $("ver").textContent = "· v" + data.app_version;
+    if (CONFIG.oauth_client_id && window.google && google.accounts){
+      google.accounts.id.initialize({ client_id: CONFIG.oauth_client_id, callback: onGoogle });
+      google.accounts.id.renderButton($("gsiButton"), { theme: "outline", size: "large", width: 300 });
+    } else {
+      $("gsiButton").classList.add("hidden");
+      $("gsiHint").textContent = "Google login belum dikonfigurasi (OAUTH_CLIENT_ID). Gunakan API key.";
+    }
+    if (IDENT.idToken || IDENT.apiKey) tryLogin();
+  }).uiCall("config", {}, {});
+}
+
+function onGoogle(resp){
+  IDENT.idToken = resp.credential || "";
+  localStorage.setItem("poi_idtoken", IDENT.idToken);
+  tryLogin();
+}
+
+function loginKey(){
+  var v = $("apiKey").value.trim();
+  if (!v){ showMsg($("loginMsg"), "API key kosong.", false); return; }
+  IDENT.apiKey = v;
+  IDENT.idToken = "";
+  localStorage.removeItem("poi_idtoken");
+  localStorage.setItem("poi_apikey", v);
+  loginKey.attempted = true;
+  tryLogin();
+}
+
+function tryLogin(){
+  api("me", {}).then(function(me){
+    ME = me;
+    $("who").textContent = me.email;
+    $("quotaBadge").textContent = me.is_admin ? "admin" : (me.quota > 0 ? "kuota " + me.used + "/" + me.quota : "unlimited");
+    var compact = $("whoCompact");
+    if (compact){
+      compact.textContent = String(me.email || "?").charAt(0).toUpperCase();
+      compact.title = me.email + (me.is_admin ? " (admin)" : "");
+      compact.className = "sm:hidden w-8 h-8 rounded-full grad-brand text-white text-xs font-bold flex items-center justify-center shrink-0" +
+        (me.is_admin ? " ring-2 ring-emerald-400" : "");
+    }
+    $("loginCard").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    if (me.is_admin){ $("adminBox").classList.remove("hidden"); loadUsers(); }
+    PENDING_RESTORE = loadFormState();
+    if (PENDING_RESTORE && PENDING_RESTORE.country){ $("country").value = PENDING_RESTORE.country; renderCountryTabs(); }
+    loadCountry();
+    renderMobileTabs();
+    renderModeCards(); renderTileCards(); renderCountryTabs(); renderBrandChips(); renderStatusFilter();
+    renderPresetCards(); renderRadiusCards(); renderRelevanceCards(); brandHintCheck();
+    renderSkeleton();
+    refreshAll(true);
+    startPolling();
+    icons();
+  }).catch(function(err){
+    $("loginCard").classList.remove("hidden");
+    $("app").classList.add("hidden");
+    showMsg($("loginMsg"), "Gagal login: " + err.message, false);
+  });
+}
+
+function logout(){
+  IDENT = { idToken: "", apiKey: "" };
+  localStorage.removeItem("poi_idtoken");
+  localStorage.removeItem("poi_apikey");
+  ME = null; JOBS = []; INDEX = null;
+  $("app").classList.add("hidden");
+  $("loginCard").classList.remove("hidden");
+  $("apiKey").value = "";
+  var compact = $("whoCompact");
+  if (compact){ compact.textContent = "?"; compact.title = ""; }
+  toast("Berhasil keluar. Masukkan API key untuk masuk kembali.", "info");
+}
+
+/* ============================================================
+   TERMINAL & SYSTEM STATE
+   ============================================================ */
+function setSyncing(on){
+  $("sysState").textContent = on ? "Syncing..." : "Online";
+  $("sysDot").className = "kpi-dot " + (on ? "bg-amber-500" : "bg-emerald-500");
+  var bar = $("topProgressBar");
+  if (bar) bar.classList.toggle("hidden", !on);
+  var icon = document.querySelector("#btnRefresh svg, #btnRefresh i");
+  if (icon) icon.classList.toggle("spin", on);
+}
+
+/* ============================================================
+   MULTI-SELECT (logika dipertahankan)
+   ============================================================ */
+var SEP = "\u0001";
+
+function makeMulti(containerId, onChange){
+  var el = $(containerId);
+  el.className = "ms";
+  el.innerHTML =
+    '<button type="button" class="ms-btn w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl glass-soft text-sm text-left">' +
+      '<span class="ms-label truncate text-slate-500 dark:text-slate-400">(semua)</span>' +
+      '<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
+    '</button>' +
+    '<div class="ms-panel hidden absolute z-50 left-0 right-0 mt-1 p-2 rounded-xl glass shadow-2xl">' +
+      '<input class="ms-search w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 text-sm mb-2" placeholder="Cari...">' +
+      '<div class="flex gap-1.5 mb-2">' +
+        '<button type="button" class="ms-all btn flex-1 text-[11px] px-2 py-1 glass-soft">Pilih semua</button>' +
+        '<button type="button" class="ms-clear btn flex-1 text-[11px] px-2 py-1 glass-soft">Bersihkan</button>' +
+      '</div>' +
+      '<div class="ms-list scroll-thin"></div>' +
+      '<button type="button" class="ms-done btn w-full mt-2 py-2 glass-soft sm:hidden">Selesai</button>' +
+    '</div>';
+  var panel = el.querySelector(".ms-panel");
+  var labelEl = el.querySelector(".ms-label");
+  var searchEl = el.querySelector(".ms-search");
+  var listEl = el.querySelector(".ms-list");
+  var state = { options: [], selected: [], query: "" };
+
+  function setLabel(){ labelEl.textContent = state.selected.length ? (state.selected.length + " dipilih") : "(semua)"; }
+  function render(){
+    var q = state.query;
+    var filtered = state.options.filter(function(o){ return !q || o.toLowerCase().indexOf(q) >= 0; });
+    var shown = filtered.slice(0, 300);
+    var html = shown.map(function(o){
+      var checked = state.selected.indexOf(o) >= 0 ? " checked" : "";
+      return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-500/10 text-sm cursor-pointer">' +
+        '<input type="checkbox" class="accent-cyan-500" value="' + esc(o) + '"' + checked + '> <span class="truncate">' + esc(o) + '</span></label>';
+    }).join("");
+    if (!shown.length) html = '<div class="text-xs text-slate-500 dark:text-slate-400 px-2 py-3">Tidak ada hasil.</div>';
+    else if (filtered.length > shown.length) html += '<div class="text-xs text-slate-500 dark:text-slate-400 px-2 py-2">+' + (filtered.length - shown.length) + ' lainnya — ketik untuk mencari.</div>';
+    listEl.innerHTML = html;
+  }
+  function fire(){ if (onChange) onChange(state.selected.slice()); renderChips(); }
+  function togglePanel(open){
+    document.querySelectorAll(".ms-panel").forEach(function(p){ if (p !== panel) p.classList.add("hidden"); });
+    panel.classList.toggle("hidden", !open);
+    if (open){ searchEl.value = ""; state.query = ""; render(); searchEl.focus(); }
+  }
+
+  el.querySelector(".ms-btn").addEventListener("click", function(e){ e.stopPropagation(); togglePanel(panel.classList.contains("hidden")); });
+  panel.addEventListener("click", function(e){ e.stopPropagation(); });
+  searchEl.addEventListener("input", function(){ state.query = searchEl.value.toLowerCase(); render(); });
+  el.querySelector(".ms-all").addEventListener("click", function(){ state.selected = state.options.slice(); setLabel(); render(); fire(); });
+  el.querySelector(".ms-clear").addEventListener("click", function(){ state.selected = []; setLabel(); render(); fire(); });
+  var doneBtn = el.querySelector(".ms-done");
+  if (doneBtn) doneBtn.addEventListener("click", function(){ togglePanel(false); });
+  listEl.addEventListener("change", function(e){
+    if (!e.target || e.target.type !== "checkbox") return;
+    var v = e.target.value;
+    if (e.target.checked){ if (state.selected.indexOf(v) < 0) state.selected.push(v); }
+    else { state.selected = state.selected.filter(function(x){ return x !== v; }); }
+    setLabel(); fire();
+  });
+
+  return {
+    setOptions: function(list){
+      state.options = list.slice();
+      state.selected = state.selected.filter(function(x){ return state.options.indexOf(x) >= 0; });
+      setLabel(); render();
+    },
+    getSelected: function(){ return state.selected.slice(); },
+    setSelected: function(arr){
+      state.selected = (arr || []).filter(function(x){ return state.options.indexOf(x) >= 0; });
+      setLabel(); render();
+    },
+    clear: function(){ state.selected = []; setLabel(); render(); }
+  };
+}
+
+var MS = {
+  provinsi: makeMulti("msProvinsi", function(){ onProvChange(); }),
+  kota: makeMulti("msKota", function(){ onKotaChange(); }),
+  kecamatan: makeMulti("msKecamatan", function(){ onKecChange(); })
+};
+
+document.addEventListener("click", function(){
+  document.querySelectorAll(".ms-panel").forEach(function(p){ p.classList.add("hidden"); });
+});
+$("scopeChips") && $("scopeChips").addEventListener("click", function(e){
+  var b = e.target && e.target.closest ? e.target.closest(".chip-x") : null;
+  if (!b) return;
+  removeScope(b.getAttribute("data-level"), b.getAttribute("data-value"));
+});
+
+function renderChips(){
+  var host = $("scopeChips");
+  if (!host) return;
+  var groups = [];
+  function add(levelKey, list, color){
+    list.forEach(function(v){
+      groups.push('<span class="chip ' + color + '">' + esc(v) +
+        ' <button type="button" class="chip-x opacity-70 hover:opacity-100 font-bold" data-level="' + levelKey +
+        '" data-value="' + esc(v) + '">×</button></span>');
+    });
+  }
+  add("provinsi", MS.provinsi.getSelected(), "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300");
+  if (!$("kotaWrap").classList.contains("hidden")) add("kota", MS.kota.getSelected(), "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300");
+  if (!$("kecWrap").classList.contains("hidden")) add("kecamatan", MS.kecamatan.getSelected(), "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300");
+  host.innerHTML = groups.join("");
+}
+
+function removeScope(levelKey, value){
+  var sel = MS[levelKey].getSelected().filter(function(x){ return x !== value; });
+  MS[levelKey].setSelected(sel);
+  if (levelKey === "provinsi"){ MS.kota.clear(); MS.kecamatan.clear(); rebuildCities(); rebuildKecamatan(); }
+  if (levelKey === "kota"){ MS.kecamatan.clear(); rebuildKecamatan(); }
+  renderChips(); recalc();
+}
+
+function selectAllVisible(){
+  if (!$("kecWrap").classList.contains("hidden")) { MS.kecamatan.clear(); }
+  if (!$("kotaWrap").classList.contains("hidden")) { MS.kota.clear(); }
+  MS.provinsi.clear();
+  rebuildCities(); rebuildKecamatan(); renderChips(); recalc();
+  toast("Semua wilayah pada level ini dipilih (kosong = semua).", "info");
+}
+function clearVisible(){
+  MS.provinsi.clear(); MS.kota.clear(); MS.kecamatan.clear();
+  rebuildCities(); rebuildKecamatan(); renderChips(); recalc();
+}
+
+function loadCountry(){
+  var c = $("country").value;
+  setSyncing(true);
+  fetch(CONFIG.index_base + "/" + (c === "indonesia" ? "id" : "ph") + "_index.json")
+    .then(function(r){ return r.json(); })
+    .then(function(idx){
+      INDEX = idx;
+      var lv = $("level"); lv.innerHTML = "";
+      idx.levels.forEach(function(l){
+        var o = document.createElement("option");
+        o.value = l; o.textContent = idx.level_labels[l] || l;
+        lv.appendChild(o);
+      });
+      if (idx.levels.indexOf("kecamatan") >= 0) lv.value = "kecamatan";
+      else if (idx.levels.indexOf("kota") >= 0) lv.value = "kota";
+      renderLevelCards();
+      fillProvinces();
+      if (PENDING_RESTORE){ applyFormState(PENDING_RESTORE); PENDING_RESTORE = null; }
+      setSyncing(false);
+      icons();
+    })
+    .catch(function(err){ setSyncing(false); showMsg($("jobMsg"), "Gagal load index: " + err.message, false); });
+}
+
+function fillProvinces(){
+  MS.provinsi.setOptions(INDEX.provinces.slice());
+  MS.kota.clear();
+  MS.kecamatan.clear();
+  rebuildCities();
+  rebuildKecamatan();
+  syncLevelUI();
+}
+
+function rebuildCities(){
+  var provs = MS.provinsi.getSelected();
+  var pool = provs.length ? provs : INDEX.provinces;
+  var set = {};
+  pool.forEach(function(p){ var c = INDEX.tree[p] || {}; Object.keys(c).forEach(function(x){ set[x] = 1; }); });
+  MS.kota.setOptions(Object.keys(set).sort());
+}
+
+function rebuildKecamatan(){
+  var hasKec = INDEX.levels.indexOf("kecamatan") >= 0;
+  if (!hasKec){ MS.kecamatan.setOptions([]); return; }
+  var provs = MS.provinsi.getSelected();
+  var pool = provs.length ? provs : INDEX.provinces;
+  var citySel = MS.kota.getSelected();
+  var set = {};
+  pool.forEach(function(p){
+    var c = INDEX.tree[p] || {};
+    Object.keys(c).forEach(function(city){
+      if (citySel.length && citySel.indexOf(city) < 0) return;
+      (c[city] || []).forEach(function(k){ set[k] = 1; });
+    });
+  });
+  MS.kecamatan.setOptions(Object.keys(set).sort());
+}
+
+function onProvChange(){ MS.kota.clear(); MS.kecamatan.clear(); rebuildCities(); rebuildKecamatan(); renderChips(); recalc(); saveFormState(); }
+function onKotaChange(){ MS.kecamatan.clear(); rebuildKecamatan(); renderChips(); recalc(); saveFormState(); }
+function onKecChange(){ renderChips(); recalc(); saveFormState(); }
+
+function syncLevelUI(){
+  if (!INDEX) return;
+  var levels = INDEX.levels;
+  var hasKec = levels.indexOf("kecamatan") >= 0;
+  var li = levels.indexOf($("level").value);
+  $("kotaWrap").classList.toggle("hidden", li < 1);
+  $("kecWrap").classList.toggle("hidden", !(hasKec && li >= 2));
+  if (li < 1) MS.kota.clear();
+  if (!(hasKec && li >= 2)) MS.kecamatan.clear();
+  renderChips(); recalc();
+}
+
+/* ============================================================
+   ESTIMASI
+   ============================================================ */
+function picked(list, sel){ return (sel && sel.length) ? sel : list; }
+
+function countAtLevel(idx, level, scope){
+  var levels = idx.levels;
+  var li = levels.indexOf(level);
+  if (li < 0) return 0;
+  var provs = picked(idx.provinces, scope.provinsi);
+  var total = 0;
+  provs.forEach(function(prov){
+    var cities = idx.tree[prov];
+    if (!cities) return;
+    if (li === 0){ total += 1; return; }
+    picked(Object.keys(cities), scope.kota).forEach(function(city){
+      if (!(city in cities)) return;
+      if (li === 1){ total += 1; return; }
+      var kecs = cities[city] || [];
+      if (li === levels.length - 1){
+        if (levels.length === 3){
+          total += (idx.counts && idx.counts.kelurahan && idx.counts.kelurahan[prov + SEP + city]) || 0;
+        } else {
+          picked(kecs, scope.kecamatan).forEach(function(kec){
+            if (kecs.indexOf(kec) < 0) return;
+            total += (idx.counts && idx.counts.kelurahan && idx.counts.kelurahan[prov + SEP + city + SEP + kec]) || 0;
+          });
+        }
+        return;
+      }
+      picked(kecs, scope.kecamatan).forEach(function(kec){ if (kecs.indexOf(kec) >= 0) total += 1; });
+    });
+  });
+  return total;
+}
+
+function currentScope(){
+  var scope = { provinsi: MS.provinsi.getSelected(), kota: [], kecamatan: [] };
+  if (!$("kotaWrap").classList.contains("hidden")) scope.kota = MS.kota.getSelected();
+  if (!$("kecWrap").classList.contains("hidden")) scope.kecamatan = MS.kecamatan.getSelected();
+  return scope;
+}
+
+function recalc(){
+  if (!INDEX) return;
+  var levels = INDEX.levels;
+  var effLevel = ($("mode").value === "expand") ? levels[levels.length - 1] : $("level").value;
+  var n = countAtLevel(INDEX, effLevel, currentScope());
+  var tile = Number($("tile").value || 0);
+  var per = Math.pow(2 * tile + 1, 2);
+  var searches = n * per;
+  var estSec = searches * 5;
+  var warn = searches > 5000;
+  var txt = "Perkiraan: <b>" + num(n) + "</b> target × " + per + " pencarian = <b>" + num(searches) + "</b> pencarian";
+  txt += " · estimasi kasar <b>" + humanizeDuration(estSec) + "</b>";
+  if (warn) txt += ' · <span class="text-rose-500 font-semibold">sangat besar, bisa lama / kena limit</span>';
+  if ($("level").value === "provinsi" && $("mode").value === "unit"){
+    txt += ' · <span class="text-amber-500 font-semibold">level provinsi + unit terpilih cakupannya kasar; pertimbangkan "Pecah ke unit terkecil"</span>';
+  }
+  var el = $("estimate");
+  el.innerHTML = txt;
+  var card = $("estimateCard");
+  card.className = "rounded-xl p-3 border " + (warn
+    ? "border-rose-500/40 bg-rose-500/10"
+    : "border-cyan-500/30 bg-cyan-500/10");
+}
+
+/* ============================================================
+   BUILDER CONTROLS (kontrol native tetap dipakai)
+   ============================================================ */
+var BRANDS = {
+  indonesia: ["Alfamart", "Indomaret", "Alfamidi", "Superindo", "Jollibee", "KFC", "Apotek K24"],
+  philippines: ["Jollibee", "7-Eleven", "Puregold", "Mercury Drug", "Chowking", "Mang Inasal", "Robinsons"]
+};
+
+var LEVEL_META = {
+  provinsi: { icon: "globe", desc: "per provinsi" },
+  kota: { icon: "building-2", desc: "per kota/kabupaten" },
+  kecamatan: { icon: "map-pin", desc: "per kecamatan" },
+  kelurahan: { icon: "map", desc: "per kelurahan/barangay (paling lengkap)" }
+};
+
+function renderCountryTabs(){
+  var host = $("countryTabs");
+  if (!host) return;
+  var cur = $("country").value;
+  var items = [
+    { v: "indonesia", label: "🇮🇩 Indonesia" },
+    { v: "philippines", label: "🇵🇭 Philippines" }
+  ];
+  host.innerHTML = items.map(function(it){
+    var active = it.v === cur;
+    return '<button class="btn px-3 py-1.5 text-sm ' + (active ? "grad-brand text-white shadow" : "text-slate-600 dark:text-slate-300") +
+      '" onclick="setCountry(\'' + it.v + '\')">' + it.label + '</button>';
+  }).join("");
+  icons();
+}
+function setCountry(v){ $("country").value = v; renderCountryTabs(); saveFormState(); loadCountry(); }
+
+function renderLevelCards(){
+  var host = $("levelCards");
+  if (!INDEX || !host) return;
+  var cur = $("level").value;
+  host.innerHTML = INDEX.levels.map(function(l){
+    var meta = LEVEL_META[l] || { icon: "circle", desc: "" };
+    var active = l === cur;
+    return '<button class="btn text-left p-3 rounded-xl border transition ' +
+      (active ? "border-cyan-500 bg-cyan-500/10 shadow-md" : "glass-soft border-transparent") +
+      '" title="' + esc(meta.desc) + '" onclick="setLevel(\'' + l + '\')">' +
+      '<span class="flex items-center gap-2 font-semibold text-sm"><i data-lucide="' + meta.icon + '" class="w-4 h-4"></i>' +
+      esc(INDEX.level_labels[l] || l) + '</span>' +
+      '<span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">' + esc(meta.desc) + '</span>' +
+      '</button>';
+  }).join("");
+  icons();
+}
+function setLevel(l){ $("level").value = l; renderLevelCards(); syncLevelUI(); saveFormState(); }
+
+function renderModeCards(){
+  var host = $("modeCards");
+  if (!host) return;
+  var cur = $("mode").value;
+  var items = [
+    { v: "unit", label: "Unit terpilih", icon: "target", desc: "1 pencarian per unit" },
+    { v: "expand", label: "Pecah ke unit terkecil", icon: "git-branch", desc: "seluruh kelurahan/barangay" }
+  ];
+  host.innerHTML = items.map(function(it){
+    var active = it.v === cur;
+    return '<button class="btn text-left p-3 rounded-xl border ' + (active ? "border-cyan-500 bg-cyan-500/10" : "glass-soft border-transparent") +
+      '" onclick="setMode(\'' + it.v + '\')"><span class="flex items-center gap-2 font-semibold text-sm"><i data-lucide="' + it.icon + '" class="w-4 h-4"></i>' +
+      it.label + '</span><span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">' + it.desc + '</span></button>';
+  }).join("");
+  icons();
+}
+function setMode(v){ $("mode").value = v; renderModeCards(); recalc(); saveFormState(); }
+
+function renderTileCards(){
+  var host = $("tileCards");
+  if (!host) return;
+  var cur = $("tile").value;
+  var items = [{ v: "0", label: "Off" }, { v: "1", label: "3x3" }, { v: "2", label: "5x5" }];
+  host.innerHTML = items.map(function(it){
+    var active = it.v === cur;
+    return '<button class="btn py-2 text-sm rounded-xl border ' + (active ? "border-cyan-500 bg-cyan-500/10 font-semibold" : "glass-soft border-transparent") +
+      '" onclick="setTile(\'' + it.v + '\')">' + it.label + '</button>';
+  }).join("");
+  icons();
+}
+function setTile(v){ $("tile").value = v; renderTileCards(); recalc(); saveFormState(); }
+
+var PRESETS = {
+  cepat: { mode: "unit", tile: "0", relevance: "mirip", radius: "auto", keep: false },
+  seimbang: { mode: "unit", tile: "0", relevance: "mirip", radius: "auto", keep: true },
+  maksimal: { mode: "expand", tile: "0", relevance: "mirip", radius: "auto", keep: true }
+};
+
+function renderPresetCards(){
+  var host = $("presetCards");
+  if (!host) return;
+  var items = [
+    { v: "cepat", label: "Cepat", icon: "zap" },
+    { v: "seimbang", label: "Seimbang", icon: "scale" },
+    { v: "maksimal", label: "Maksimal", icon: "maximize" }
+  ];
+  host.innerHTML = items.map(function(it){
+    return '<button class="btn py-2 text-xs rounded-xl glass-soft border border-transparent hover:border-cyan-500/50" onclick="applyPreset(\'' + it.v + '\')">' +
+      '<span class="inline-flex items-center gap-1"><i data-lucide="' + it.icon + '" class="w-3 h-3"></i>' + it.label + '</span></button>';
+  }).join("");
+  icons();
+}
+function applyPreset(name){
+  var p = PRESETS[name];
+  if (!p) return;
+  setMode(p.mode); setTile(p.tile); setRelevance(p.relevance); setRadius(p.radius);
+  if ($("keepNoCoords")) $("keepNoCoords").checked = p.keep;
+  saveFormState();
+  toast("Preset " + name + " diterapkan", "info");
+}
+
+function renderRadiusCards(){
+  var host = $("radiusCards");
+  if (!host) return;
+  var items = [{ v: "auto", label: "Auto" }, { v: "manual", label: "Manual" }];
+  host.innerHTML = items.map(function(it){
+    var active = RADIUS === it.v;
+    return '<button class="btn py-2 text-sm rounded-xl border ' + (active ? "border-cyan-500 bg-cyan-500/10 font-semibold" : "glass-soft border-transparent") +
+      '" onclick="setRadius(\'' + it.v + '\')">' + it.label + '</button>';
+  }).join("");
+  var inp = $("radiusManual");
+  if (inp) inp.classList.toggle("hidden", RADIUS !== "manual");
+}
+function setRadius(v){ RADIUS = v; renderRadiusCards(); saveFormState(); }
+
+function renderRelevanceCards(){
+  var host = $("relevanceCards");
+  if (!host) return;
+  var items = [{ v: "persis", label: "Persis" }, { v: "mirip", label: "Mirip" }, { v: "longgar", label: "Longgar" }];
+  host.innerHTML = items.map(function(it){
+    var active = RELEVANCE === it.v;
+    return '<button class="btn py-2 text-xs rounded-xl border ' + (active ? "border-cyan-500 bg-cyan-500/10 font-semibold" : "glass-soft border-transparent") +
+      '" onclick="setRelevance(\'' + it.v + '\')">' + it.label + '</button>';
+  }).join("");
+}
+function setRelevance(v){ RELEVANCE = v; renderRelevanceCards(); saveFormState(); }
+
+function jobPause(jobId){
+  api("jobs.pause", { job_id: jobId }).then(function(){
+    toast("Permintaan pause terkirim — job berhenti setelah target berjalan.", "info");
+    refreshAll(true);
+  }).catch(function(err){ toast("Gagal pause: " + err.message, "err"); });
+}
+function jobCancel(jobId){
+  if (!confirm("Hentikan job ini? Progres yang sudah ter-stream tetap tersimpan.")) return;
+  api("jobs.cancel", { job_id: jobId }).then(function(){
+    toast("Job dihentikan (cancelled).", "info");
+    refreshAll(true);
+  }).catch(function(err){ toast("Gagal stop: " + err.message, "err"); });
+}
+function jobResume(jobId){
+  api("jobs.resume", { job_id: jobId }).then(function(){
+    toast("Job dilanjutkan — menunggu antrean.", "ok");
+    refreshAll(true);
+  }).catch(function(err){ toast("Gagal resume: " + err.message, "err"); });
+}
+function rerunZero(jobId){
+  if (!confirm("Buat job baru untuk mengulang hanya target yang 0 hasil?")) return;
+  api("jobs.rerunZero", { job_id: jobId }).then(function(j){
+    toast("Job ulangan dibuat: " + j.job_id, "ok");
+    closeModal("modalDetail");
+    refreshAll(true);
+  }).catch(function(err){ toast("Gagal: " + err.message, "err"); });
+}
+
+function openDetail(jobId){
+  var job = JOBS.filter(function(x){ return String(x.job_id) === String(jobId); })[0] || { job_id: jobId, brand: "" };
+  $("detailBody").innerHTML = '<div class="text-slate-500 dark:text-slate-400 p-4">Memuat detail...</div>';
+  openModal("modalDetail");
+  api("jobs.get", { job_id: jobId }).then(function(raw){
+    renderDetail(Object.assign({}, job, raw || {}));
+  }).catch(function(err){
+    toast("Detail lengkap gagal dimuat, memakai data daftar: " + err.message, "info");
+    renderDetail(job);
+  });
+}
+
+function renderDetail(job){
+  $("detailTitle").textContent = "· " + job.brand;
+  var link = $("detailRunLink");
+  if (job.run_url){ link.href = job.run_url; link.classList.remove("hidden"); } else { link.classList.add("hidden"); }
+
+  var st = {};
+  try { st = JSON.parse(job.filter_stats_json || "{}") || {}; } catch(e){ st = {}; }
+  var chunks = {};
+  try { chunks = JSON.parse(job.chunks_json || "{}") || {}; } catch(e){ chunks = {}; }
+  var overall = Number(job.overall_progress || 0);
+  var total = Number(job.total_chunks || 0);
+
+  var agg = {};
+  var zeroTargets = [];
+  Object.keys(chunks).forEach(function(k){
+    var cs = (chunks[k] && chunks[k].stats) ? chunks[k].stats : null;
+    if (!cs) return;
+    Object.keys(cs).forEach(function(key){
+      if (key === "zero_targets"){
+        if (cs[key] && cs[key].length) zeroTargets = zeroTargets.concat(cs[key]);
+        return;
+      }
+      var v = Number(cs[key]);
+      if (!isNaN(v)) agg[key] = (agg[key] || 0) + v;
+    });
+  });
+  if (!Object.keys(agg).length && st){
+    Object.keys(st).forEach(function(k){
+      if (k === "zero_targets"){ if (st[k] && st[k].length) zeroTargets = zeroTargets.concat(st[k]); return; }
+      var v = Number(st[k]);
+      if (!isNaN(v)) agg[k] = Number(st[k]);
+    });
+  }
+
+  function box(label, val){
+    return '<div class="glass-soft rounded-xl p-3"><div class="text-[10px] uppercase text-slate-500 dark:text-slate-400">' + label +
+      '</div><div class="font-bold">' + val + '</div></div>';
+  }
+  var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">';
+  html += box("Status", esc(job.status || "-"));
+  html += box("Progress total", overall.toFixed(1) + "%");
+  html += box("Chunk", esc(job.current_chunk || "-") + (total ? " / " + total : ""));
+  html += box("Records", esc(job.records == null ? "-" : num(job.records)));
+  html += box("Listings", esc(job.listings_found == null ? "-" : num(job.listings_found)));
+  html += box("Target saat ini", '<span class="text-xs">' + esc(job.current_target || "-") + '</span>');
+  html += box("ETA", esc(job.eta || "-"));
+  html += box("Selesai/Update", esc(job.finished_at || job.created_at || "-"));
+  html += '</div>';
+
+  var keys = Object.keys(agg);
+  if (keys.length){
+    html += '<div class="mb-4"><div class="font-semibold mb-1">Statistik filter (semua chunk)</div><div class="flex flex-wrap gap-2">';
+    keys.forEach(function(k){ html += '<span class="chip glass-soft">' + esc(k) + ': ' + esc(num(agg[k])) + '</span>'; });
+    html += '</div></div>';
+  }
+  if (!zeroTargets.length && job.zero_targets_json){
+    try {
+      var zj = JSON.parse(job.zero_targets_json);
+      if (Array.isArray(zj)) zeroTargets = zj;
+    } catch(e){}
+  }
+  if (zeroTargets.length){
+    var shownZero = zeroTargets.slice(0, 100);
+    html += '<div class="mb-4"><div class="flex items-center justify-between gap-2 mb-1">' +
+      '<div class="font-semibold">Target 0 hasil (' + zeroTargets.length + ')</div>' +
+      '<button class="btn grad-brand text-white px-3 py-1 text-[11px] inline-flex items-center gap-1" onclick="rerunZero(\'' + esc(job.job_id) + '\')">' +
+      '<i data-lucide="refresh-ccw" class="w-3 h-3"></i> Ulangi hanya target 0 hasil</button></div>' +
+      '<div class="text-[11px] text-slate-500 dark:text-slate-400 max-h-40 overflow-auto scroll-thin glass-soft rounded-xl p-2">' +
+      shownZero.map(function(z){ return '<div>&bull; ' + esc(z) + '</div>'; }).join('') +
+      (zeroTargets.length > shownZero.length ? '<div>&hellip; +' + (zeroTargets.length - shownZero.length) + ' lainnya</div>' : '') +
+      '</div></div>';
+  }
+
+  var idxs = Object.keys(chunks).sort(function(a, b){ return Number(a) - Number(b); });
+  if (idxs.length){
+    var doneCount = 0;
+    idxs.forEach(function(k){ if (String((chunks[k] || {}).status || "").toLowerCase() === "done") doneCount++; });
+    var denom = total || idxs.length;
+    var covPct = denom ? Math.round((doneCount / denom) * 100) : 0;
+    html += '<div class="font-semibold mb-1">Coverage per wilayah (' + doneCount + '/' + denom + ' chunk &middot; ' + covPct + '%)</div>' +
+      '<div class="h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700/60 overflow-hidden mb-2"><div class="h-full grad-brand" style="width:' + covPct + '%"></div></div>' +
+      '<div class="overflow-auto scroll-thin"><table class="w-full text-xs">' +
+      '<thead><tr class="text-left text-slate-500 dark:text-slate-400 border-b border-slate-300 dark:border-slate-700">' +
+      '<th class="py-1.5 pr-3">#</th><th class="py-1.5 pr-3">Wilayah</th><th class="py-1.5 pr-3">Status</th><th class="py-1.5 pr-3">Records</th><th class="py-1.5">Zero</th></tr></thead><tbody>';
+    idxs.forEach(function(k){
+      var c = chunks[k] || {};
+      var z = (c.stats && c.stats.zero_result_targets) ? c.stats.zero_result_targets : 0;
+      html += '<tr class="border-b border-slate-200/50 dark:border-slate-800/50"><td class="py-1.5 pr-3">' + (Number(k) + 1) +
+        '</td><td class="py-1.5 pr-3">' + esc(c.label || "-") + '</td><td class="py-1.5 pr-3">' + esc(c.status || "-") +
+        '</td><td class="py-1.5 pr-3">' + esc(c.records || 0) + '</td><td class="py-1.5">' + esc(z) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  } else {
+    html += '<div class="text-xs text-slate-500 dark:text-slate-400">Belum ada data chunk.</div>';
+  }
+
+  html += '<div id="detailFill" class="mt-4"></div>';
+  $("detailBody").innerHTML = html;
+  openModal("modalDetail");
+  loadFillRates(job);
+}
+
+function loadFillRates(job){
+  if (!job || !job.result_sheet || !job.job_id) return;
+  api("jobs.preview", { job_id: job.job_id, limit: 500 }).then(function(d){
+    var host = $("detailFill");
+    if (!host || !d || !d.headers || !d.rows || !d.rows.length) return;
+    var colIdx = {};
+    d.headers.forEach(function(h, i){ colIdx[h] = i; });
+    var cols = ["Name_geocode", "Category_geocode", "Address_geocode", "Phone_Number_geocode",
+                "Website_geocode", "Operating_Hours_geocode", "Payment_geocode", "Building_geocode", "Latitude_geocode"];
+    var chips = cols.map(function(c){
+      var i = colIdx[c];
+      if (i === undefined) return "";
+      var filled = d.rows.filter(function(r){
+        var v = r[i] == null ? "" : String(r[i]).trim();
+        return v !== "" && v !== "{}" && v !== "[]";
+      }).length;
+      var pct = Math.round((filled / d.rows.length) * 100);
+      return '<span class="chip glass-soft">' + esc(c.replace("_geocode", "")) + ': ' + pct + '%</span>';
+    }).join("");
+    host.innerHTML = '<div class="font-semibold mb-1">Fill-rate (contoh ' + d.rows.length + ' dari ' + num(d.total) + ' baris)</div>' +
+      '<div class="flex flex-wrap gap-2">' + chips + '</div>';
+  }).catch(function(){});
+}
+
+function renderBrandChips(){
+  var host = $("brandChips");
+  if (!host) return;
+  var c = $("country").value;
+  var list = BRANDS[c] || BRANDS.indonesia;
+  host.innerHTML = list.map(function(b){
+    return '<button class="chip glass-soft hover:bg-cyan-500/15" onclick="setBrand(\'' + esc(b).replace(/'/g, "\\'") + '\')">' +
+      '<i data-lucide="sparkles" class="w-3 h-3"></i>' + esc(b) + '</button>';
+  }).join("");
+  icons();
+}
+function setBrand(b){ $("brand").value = b; brandHintCheck(); saveFormState(); }
+
+var GENERIC_WORDS = [
+  "market", "station", "mall", "university", "airport", "bus", "terminal",
+  "hospital", "school", "church", "mosque", "park", "hotel", "restaurant",
+  "supermarket", "bank", "office", "store", "shop"
+];
+function brandHintCheck(){
+  var el = $("brandHint");
+  if (!el) return;
+  var v = String($("brand").value || "").toLowerCase();
+  if (!v){ el.textContent = ""; return; }
+  var generic = GENERIC_WORDS.some(function(w){ return v.indexOf(w) >= 0; });
+  if (generic){
+    el.innerHTML = "Kata kunci tampak generik (bukan merek). Pertimbangkan mode <b>Longgar</b> atau <b>Mirip</b> (nama/kategori) agar hasil tidak dibuang.";
+  } else if (v.indexOf("|") >= 0){
+    el.innerHTML = "Alias terdeteksi: pencocokan memakai semua alias (query tetap satu).";
+  } else {
+    el.textContent = "";
+  }
+}
+
+function renderStatusFilter(){
+  var host = $("statusFilter");
+  if (!host) return;
+  var counts = { all: JOBS.length, queued: 0, running: 0, done: 0, failed: 0 };
+  (JOBS || []).forEach(function(j){
+    var s = String(j.status || "").toLowerCase();
+    if (s === "running" || s === "dispatched") counts.running++;
+    else if (counts[s] !== undefined) counts[s]++;
+  });
+  var items = ["all", "queued", "running", "done", "failed"];
+  host.innerHTML = items.map(function(s){
+    var active = FILTER.status === s;
+    var label = s === "all" ? "Semua" : s;
+    return '<button class="btn px-2.5 py-1 text-[11px] rounded-lg ' + (active ? "grad-brand text-white" : "text-slate-600 dark:text-slate-300") +
+      '" onclick="setStatusFilter(\'' + s + '\')">' + label + ' (' + (counts[s] || 0) + ')</button>';
+  }).join("");
+}
+function setStatusFilter(s){ FILTER.status = s; renderStatusFilter(); renderJobs(); }
+
+/* ============================================================
+   KPI, JOBS, RENDER
+   ============================================================ */
+function fetchStats(){
+  return api("jobs.stats", {}).catch(function(){ return computeStats(JOBS); });
+}
+function computeStats(jobs){
+  var st = { total: 0, done: 0, running: 0, queued: 0, failed: 0, active: 0, records: 0 };
+  (jobs || []).forEach(function(j){
+    st.total++;
+    var s = String(j.status || "").toLowerCase();
+    if (s === "done") st.done++;
+    else if (s === "failed") st.failed++;
+    else if (s === "queued") st.queued++;
+    else if (s === "running" || s === "dispatched") st.running++;
+    if (s === "running" || s === "dispatched" || s === "queued") st.active++;
+    var rec = Number(j.records || 0);
+    if (!rec){ var m = String(j.progress || "").match(/\((\d+)\s*records?\)/i); if (m) rec = Number(m[1]); }
+    st.records += rec;
+  });
+  return st;
+}
+
+function kpiCard(icon, label, value, sub, color){
+  return '<div class="glass rounded-2xl shadow-lg p-4 flex items-center gap-3">' +
+    '<div class="w-11 h-11 rounded-xl flex items-center justify-center ' + color + '">' +
+    '<i data-lucide="' + icon + '" class="w-5 h-5 text-white"></i></div>' +
+    '<div class="min-w-0"><div class="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">' + label + '</div>' +
+    '<div class="text-xl font-extrabold leading-tight">' + value + '</div>' +
+    '<div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">' + sub + '</div></div></div>';
+}
+
+function renderKPI(stats){
+  var st = stats || computeStats(JOBS);
+  var quotaSub = ME && ME.is_admin ? "Admin — akses semua" : (ME && ME.quota > 0 ? (ME.used + "/" + ME.quota + " terpakai") : "Unlimited");
+  var quotaVal = ME && ME.is_admin ? "Admin" : (ME ? (ME.quota > 0 ? String(Math.max(0, ME.quota - ME.used)) : "∞") : "-");
+  $("kpiRow").innerHTML =
+    kpiCard("check-circle-2", "Job Selesai", num(st.done), "dari " + num(st.total) + " total job", "bg-emerald-500") +
+    kpiCard("database", "Records Terkumpul", num(st.records), "POI tersimpan", "bg-indigo-500") +
+    kpiCard("loader", "Aktif / Antre", num(st.active), num(st.running) + " berjalan · " + num(st.queued) + " antre", "bg-amber-500") +
+    kpiCard("gauge", "Sisa Kuota", quotaVal, quotaSub, "bg-cyan-500");
+  icons();
+}
+
+function statusBadge(j){
+  var s = String(j.status || "").toLowerCase();
+  if (s === "queued") return '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><span class="kpi-dot bg-amber-500 animate-pulse"></span>queued</span>';
+  if (s === "running" || s === "dispatched") return '<span class="chip bg-sky-500/15 text-sky-600 dark:text-sky-300"><span class="spin inline-flex"><i data-lucide="loader-2" class="w-3 h-3"></i></span>' + esc(s) + '</span>';
+  if (s === "done") return '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><i data-lucide="check" class="w-3 h-3"></i>done</span>';
+  if (s === "failed") return '<span class="chip bg-rose-500/15 text-rose-600 dark:text-rose-300" title="' + esc(j.error || "error") + '"><i data-lucide="x" class="w-3 h-3"></i>failed</span>';
+  if (s === "paused" || s === "pausing") return '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><i data-lucide="pause" class="w-3 h-3"></i>' + esc(s) + '</span>';
+  if (s === "cancelled") return '<span class="chip bg-slate-500/20 text-slate-600 dark:text-slate-300"><i data-lucide="square" class="w-3 h-3"></i>cancelled</span>';
+  return '<span class="chip bg-slate-500/15 text-slate-600 dark:text-slate-300">' + esc(s || "-") + '</span>';
+}
+
+function progressCell(j){
+  var total = Number(j.total_chunks || 0);
+  var overall = Number(j.overall_progress || 0);
+  var pct = overall;
+  if (total <= 1){
+    var m = String(j.progress || "").match(/([\d.]+)\s*%/);
+    if (m) pct = Number(m[1]);
+  }
+  pct = Math.max(0, Math.min(100, pct));
+  var running = String(j.status || "").toLowerCase() === "running" || String(j.status || "").toLowerCase() === "dispatched";
+  var label = total > 1
+    ? ("Chunk " + esc(j.current_chunk || "-") + " · " + pct.toFixed(1) + "%")
+    : esc(j.progress || "-");
+  return '<div class="flex items-center gap-2 min-w-[170px]">' +
+    '<div class="flex-1 h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700/60 overflow-hidden">' +
+    '<div class="h-full grad-brand" style="width:' + pct + '%;transition:width .4s"></div></div>' +
+    '<span class="text-[11px] ' + (running ? "text-sky-500 font-semibold" : "text-slate-500 dark:text-slate-400") + '">' + label + '</span>' +
+    '</div>';
+}
+
+function actionButtons(j){
+  var html = '<div class="flex flex-wrap gap-1.5">';
+  var st = String(j.status || "").toLowerCase();
+  var idArg = '\'' + esc(j.job_id) + '\'';
+  if (st === "running" || st === "dispatched"){
+    html += '<button class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1" onclick="jobPause(' + idArg + ')"><i data-lucide="pause" class="w-3 h-3"></i>Pause</button>';
+    html += '<button class="btn px-2 py-1 text-[11px] glass-soft text-rose-500 inline-flex items-center gap-1" onclick="jobCancel(' + idArg + ')"><i data-lucide="square" class="w-3 h-3"></i>Stop</button>';
+  } else if (st === "queued"){
+    html += '<button class="btn px-2 py-1 text-[11px] glass-soft text-rose-500 inline-flex items-center gap-1" onclick="jobCancel(' + idArg + ')"><i data-lucide="square" class="w-3 h-3"></i>Stop</button>';
+  } else if (st === "paused" || st === "cancelled" || st === "failed"){
+    html += '<button class="btn px-2 py-1 text-[11px] glass-soft text-emerald-500 inline-flex items-center gap-1" onclick="jobResume(' + idArg + ')"><i data-lucide="play" class="w-3 h-3"></i>Resume</button>';
+  }
+  if (j.run_url) html += '<a href="' + esc(j.run_url) + '" target="_blank" class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1"><i data-lucide="scroll-text" class="w-3 h-3"></i>Logs</a>';
+  else html += '<button class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1" onclick="openLogs(\'' + esc(j.job_id) + '\')"><i data-lucide="scroll-text" class="w-3 h-3"></i>Logs</button>';
+  if (j.result_url) html += '<a href="' + esc(j.result_url) + '" target="_blank" class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1"><i data-lucide="table" class="w-3 h-3"></i>Tab</a>';
+  if (j.result_sheet) html += '<button class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1" onclick="openPreview(\'' + esc(j.job_id) + '\')"><i data-lucide="eye" class="w-3 h-3"></i>Preview</button>';
+  var csvUrl = j.output_url || "";
+  if (!csvUrl && j.result_url) csvUrl = j.result_url.replace("/edit#gid=", "/export?format=csv&gid=");
+  if (csvUrl) html += '<a href="' + esc(csvUrl) + '" target="_blank" class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i>CSV</a>';
+  html += '<button class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1" onclick="openDetail(\'' + esc(j.job_id) + '\')"><i data-lucide="activity" class="w-3 h-3"></i>Detail</button>';
+  html += '</div>';
+  return html;
+}
+
+function filteredJobs(){
+  var q = (FILTER.q || "").toLowerCase();
+  return JOBS.filter(function(j){
+    var s = String(j.status || "").toLowerCase();
+    if (FILTER.status !== "all"){
+      if (FILTER.status === "running"){ if (s !== "running" && s !== "dispatched") return false; }
+      else if (s !== FILTER.status) return false;
+    }
+    if (q && String(j.brand || "").toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+
+function renderJobs(){
+  var list = filteredJobs();
+  $("jobCount").textContent = list.length + " job" + (list.length !== JOBS.length ? " (difilter dari " + JOBS.length + ")" : "");
+  if (!list.length){
+    $("jobsBody").innerHTML = "";
+    $("jobsCards").innerHTML = "";
+    $("jobsEmpty").classList.remove("hidden");
+    icons();
+    return;
+  }
+  $("jobsEmpty").classList.add("hidden");
+  $("jobsBody").innerHTML = list.map(function(j){
+    return '<tr class="border-b border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-500/5">' +
+      '<td class="py-2.5 pr-3 font-semibold">' + esc(j.brand) + '</td>' +
+      '<td class="py-2.5 pr-3 text-slate-500 dark:text-slate-400 text-xs">' + esc(j.user || "") + '</td>' +
+      '<td class="py-2.5 pr-3">' + statusBadge(j) + '</td>' +
+      '<td class="py-2.5 pr-3">' + progressCell(j) + '</td>' +
+      '<td class="py-2.5 pr-3 text-xs text-slate-500 dark:text-slate-400 max-w-[220px] truncate" title="' + esc(j.current_target || "") + '">' + esc(j.current_target || "-") + '</td>' +
+      '<td class="py-2.5 pr-3 text-xs">' + esc(j.records == null ? "-" : num(j.records)) + '</td>' +
+      '<td class="py-2.5 pr-3 text-xs text-slate-500 dark:text-slate-400">' + esc(j.eta || "-") + '</td>' +
+      '<td class="py-2.5">' + actionButtons(j) + '</td></tr>';
+  }).join("");
+  $("jobsCards").innerHTML = list.map(function(j){
+    return '<div class="glass-soft rounded-xl p-3 space-y-2">' +
+      '<div class="flex items-center justify-between gap-2"><div class="font-bold">' + esc(j.brand) + '</div>' + statusBadge(j) + '</div>' +
+      '<div class="text-[11px] text-slate-500 dark:text-slate-400">' + esc(j.user || "") + ' · ' + esc(j.country || "") + ' · ' + esc(j.created_at || "") + '</div>' +
+      progressCell(j) +
+      '<div class="grid grid-cols-2 gap-1 text-[11px] text-slate-500 dark:text-slate-400">' +
+      '<div>Target: ' + esc(j.current_target || "-") + '</div><div>Records: ' + esc(j.records == null ? "-" : num(j.records)) + '</div>' +
+      '<div>ETA: ' + esc(j.eta || "-") + '</div></div>' +
+      actionButtons(j) + '</div>';
+  }).join("");
+  icons();
+}
+
+function fetchJobs(){
+  return new Promise(function(resolve, reject){
+    google.script.run
+      .withSuccessHandler(function(res){
+        if (res && res.ok) resolve(res.data);
+        else reject(new Error(res && res.error ? res.error : "uiJobsList: respons kosong"));
+      })
+      .withFailureHandler(function(err){ reject(err); })
+      .uiJobsList(IDENT);
+  }).catch(function(){ return api("jobs.list", {}); });
+}
+
+function refreshAll(silent){
+  if (!ME) return;
+  setSyncing(true);
+  Promise.all([fetchJobs().catch(function(){ return JOBS; }), fetchStats().catch(function(){ return computeStats(JOBS); })])
+    .then(function(out){
+      JOBS = out[0] || [];
+      renderJobs();
+      renderStatusFilter();
+      renderKPI(out[1]);
+      detectTransitions(JOBS);
+      LAST_REFRESH = new Date();
+      COUNTDOWN = 10;
+      setSyncing(false);
+    })
+    .catch(function(err){
+      setSyncing(false);
+      if (!silent) toast("Gagal memuat data: " + err.message, "err");
+    });
+}
+
+function startPolling(){
+  if (window.__poll) clearInterval(window.__poll);
+  window.__poll = setInterval(function(){
+    if (!ME) return;
+    COUNTDOWN--;
+    if (COUNTDOWN <= 0){ refreshAll(true); }
+    else { var el = $("countdown"); if (el) el.textContent = COUNTDOWN; }
+    var lr = $("lastRefresh");
+    if (lr && LAST_REFRESH) lr.textContent = "diperbarui " + Math.max(0, Math.round((Date.now() - LAST_REFRESH.getTime())/1000)) + " dtk lalu";
+  }, 1000);
+}
+
+/* ============================================================
+   SUBMIT
+   ============================================================ */
+function submitJob(ev){
+  if (ev) ripple(ev);
+  var params = { relevance_mode: RELEVANCE, keep_no_coords: !!($("keepNoCoords") && $("keepNoCoords").checked) };
+  var r = Number($("radiusManual") ? $("radiusManual").value : 0);
+  if (RADIUS === "manual" && r > 0) params.radius_km = Math.max(1, Math.min(300, r));
+  var payload = {
+    country: $("country").value,
+    brand: $("brand").value.trim(),
+    level: $("level").value,
+    scope: currentScope(),
+    mode: $("mode").value,
+    tile: Number($("tile").value),
+    params: params
+  };
+  if (!payload.brand){ showMsg($("jobMsg"), "Brand wajib diisi.", false); return; }
+  showMsg($("jobMsg"), "Mengirim job...", true);
+  api("jobs.create", payload).then(function(j){
+    showMsg($("jobMsg"), "Job dibuat: " + j.job_id + " (" + j.status + ")", true);
+    toast("Job " + j.brand + " berhasil dibuat", "ok");
+    if (!isDesktop()) setMobileTab("jobs");
+    refreshAll(true);
+  }).catch(function(err){ showMsg($("jobMsg"), "Gagal: " + err.message, false); toast("Gagal membuat job", "err"); });
+}
+
+/* ============================================================
+   MODAL: PREVIEW / LOGS / DIAG
+   ============================================================ */
+function openPreview(jobId){
+  var job = JOBS.filter(function(x){ return String(x.job_id) === String(jobId); })[0];
+  $("previewTitle").textContent = job ? "· " + job.brand : "";
+  $("previewBody").innerHTML = '<div class="text-slate-500 dark:text-slate-400 p-4">Memuat data...</div>';
+  openModal("modalPreview");
+  api("jobs.preview", { job_id: jobId, limit: 10 }).then(function(d){
+    if (!d.rows || !d.rows.length){
+      $("previewBody").innerHTML = '<div class="text-slate-500 dark:text-slate-400 p-4">Belum ada data pada tab hasil.</div>';
+      return;
+    }
+    var head = d.headers.map(function(h){ return '<th class="px-2 py-1.5 text-left text-[10px] uppercase text-slate-500 dark:text-slate-400 border-b border-slate-300 dark:border-slate-700 whitespace-nowrap">' + esc(h) + '</th>'; }).join("");
+    var body = d.rows.map(function(r){
+      return '<tr class="border-b border-slate-200/50 dark:border-slate-800/50">' +
+        r.map(function(c){ return '<td class="px-2 py-1.5 align-top whitespace-nowrap max-w-[220px] truncate" title="' + esc(c) + '">' + esc(c) + '</td>'; }).join("") + '</tr>';
+    }).join("");
+    $("previewBody").innerHTML = '<div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Menampilkan ' + d.rows.length + ' dari ' + num(d.total) + ' baris.</div>' +
+      '<table class="w-full"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
+    icons();
+  }).catch(function(err){
+    $("previewBody").innerHTML = '<div class="text-rose-500 p-4">Gagal memuat: ' + esc(err.message) + '</div>';
+  });
+}
+
+function openLogs(jobId){
+  $("logsTitle").textContent = "";
+  $("logsBody").textContent = "Memuat log...";
+  $("logsRunLink").classList.add("hidden");
+  openModal("modalLogs");
+  var job = JOBS.filter(function(j){ return String(j.job_id) === String(jobId); })[0];
+  if (job && job.run_url){ $("logsRunLink").href = job.run_url; $("logsRunLink").classList.remove("hidden"); }
+  api("jobs.logs", { job_id: jobId, limit: 80 }).then(function(rows){
+    if (!rows || !rows.length){ $("logsBody").textContent = "(belum ada log untuk job ini)"; return; }
+    $("logsBody").textContent = rows.map(function(l){
+      return "[" + l.timestamp + "] " + (l.message || "");
+    }).join("\n");
+  }).catch(function(err){ $("logsBody").textContent = "Gagal memuat log: " + err.message; });
+}
+
+function openDiag(){
+  $("diagBody").textContent = "Memuat diagnostik...";
+  openModal("modalDiag");
+  api("admin.diag", {}).then(function(d){
+    $("diagBody").textContent = JSON.stringify(d, null, 2);
+  }).catch(function(err){ $("diagBody").textContent = "Gagal: " + err.message; });
+}
+
+/* ============================================================
+   ADMIN
+   ============================================================ */
+function adminCreate(){
+  var email = $("newEmail").value.trim();
+  var quota = Number($("newQuota").value || 0);
+  api("admin.createKey", { email: email, quota: quota }).then(function(d){
+    $("adminMsg").innerHTML = 'API key untuk <b>' + esc(d.email) + '</b> (simpan sekali):' +
+      '<div class="mt-1 flex items-center gap-2"><code class="terminal text-xs px-2 py-1 rounded bg-slate-900 text-emerald-300 break-all">' + esc(d.api_key) + '</code>' +
+      '<button class="btn px-2 py-1 text-[11px] glass-soft" onclick="copyText(\'' + esc(d.api_key) + '\',\'API key\')">Copy</button></div>';
+    $("adminMsg").className = "msg text-sm rounded-lg p-2.5 mt-3 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
+    toast("API key dibuat untuk " + d.email, "ok");
+    loadUsers();
+  }).catch(function(err){ showMsg($("adminMsg"), "Gagal: " + err.message, false); });
+}
+
+function loadUsers(){
+  api("admin.users", {}).then(function(users){
+    $("users").innerHTML = users.map(function(u){
+      var active = String(u.active).toUpperCase() === "TRUE";
+      var emailArg = "'" + esc(u.email) + "'";
+      var actions = '<div class="flex flex-wrap gap-1">' +
+        '<button class="btn px-2 py-0.5 text-[11px] glass-soft" onclick="adminGetKey(' + emailArg + ')">Copy key</button>' +
+        '<button class="btn px-2 py-0.5 text-[11px] glass-soft" onclick="adminSetQuota(' + emailArg + ')">Kuota</button>' +
+        '<button class="btn px-2 py-0.5 text-[11px] glass-soft" onclick="adminResetKey(' + emailArg + ',' + Number(u.quota || 0) + ')">Reset</button>' +
+        '<button class="btn px-2 py-0.5 text-[11px] glass-soft" onclick="adminToggleActive(' + emailArg + ',' + (active ? "false" : "true") + ')">' + (active ? "Nonaktifkan" : "Aktifkan") + '</button>' +
+        '</div>';
+      return '<tr class="border-b border-slate-200/60 dark:border-slate-800/60 align-top">' +
+        '<td class="py-2 pr-3">' + esc(u.email) + (u.has_key ? '' : ' <span class="text-[10px] text-amber-500">(reset utk lihat key)</span>') + '</td>' +
+        '<td class="py-2 pr-3">' + esc(u.quota || 0) + '</td>' +
+        '<td class="py-2 pr-3">' + esc(u.used || 0) + '</td>' +
+        '<td class="py-2 pr-3">' + (active ? '<span class="text-emerald-500">aktif</span>' : '<span class="text-rose-500">nonaktif</span>') + '</td>' +
+        '<td class="py-2">' + actions + '</td></tr>';
+    }).join("");
+    var cards = $("usersCards");
+    if (cards){
+      cards.innerHTML = users.map(function(u){
+        var active = String(u.active).toUpperCase() === "TRUE";
+        var emailArg = "'" + esc(u.email) + "'";
+        return '<div class="glass-soft rounded-xl p-3 space-y-2">' +
+          '<div class="flex items-center justify-between gap-2">' +
+          '<div class="font-semibold text-sm break-all">' + esc(u.email) + (u.has_key ? '' : ' <span class="text-[10px] text-amber-500">(reset)</span>') + '</div>' +
+          (active ? '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">aktif</span>' : '<span class="chip bg-rose-500/15 text-rose-600 dark:text-rose-300">nonaktif</span>') +
+          '</div>' +
+          '<div class="text-[11px] text-slate-500 dark:text-slate-400">Kuota ' + esc(u.quota || 0) + ' · Used ' + esc(u.used || 0) + '</div>' +
+          '<div class="flex flex-wrap gap-1">' +
+          '<button class="btn px-2.5 py-1 text-[11px] glass-soft" onclick="adminGetKey(' + emailArg + ')">Copy key</button>' +
+          '<button class="btn px-2.5 py-1 text-[11px] glass-soft" onclick="adminSetQuota(' + emailArg + ')">Kuota</button>' +
+          '<button class="btn px-2.5 py-1 text-[11px] glass-soft" onclick="adminResetKey(' + emailArg + ',' + Number(u.quota || 0) + ')">Reset</button>' +
+          '<button class="btn px-2.5 py-1 text-[11px] glass-soft" onclick="adminToggleActive(' + emailArg + ',' + (active ? "false" : "true") + ')">' + (active ? "Nonaktifkan" : "Aktifkan") + '</button>' +
+          '</div></div>';
+      }).join("");
+    }
+  }).catch(function(){});
+}
+
+function _showKey(d){
+  $("adminMsg").innerHTML = 'API key <b>' + esc(d.email) + '</b>: ' +
+    '<code class="terminal text-xs px-2 py-1 rounded bg-slate-900 text-emerald-300 break-all">' + esc(d.api_key) + '</code>';
+  $("adminMsg").className = "msg text-sm rounded-lg p-2.5 mt-3 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
+  copyText(d.api_key, "API key");
+}
+function adminGetKey(email){
+  api("admin.getKey", { email: email }).then(_showKey)
+    .catch(function(err){ showMsg($("adminMsg"), "Gagal: " + err.message, false); });
+}
+function adminSetQuota(email){
+  var q = prompt("Kuota baru untuk " + email + " (0 = unlimited):", "0");
+  if (q === null) return;
+  api("admin.setQuota", { email: email, quota: Number(q || 0) }).then(function(){
+    toast("Kuota " + email + " = " + Number(q || 0), "ok");
+    loadUsers();
+  }).catch(function(err){ showMsg($("adminMsg"), "Gagal: " + err.message, false); });
+}
+function adminResetKey(email, quota){
+  if (!confirm("Reset API key untuk " + email + "? Key lama tidak berlaku.")) return;
+  api("admin.createKey", { email: email, quota: Number(quota || 0) }).then(function(d){
+    _showKey(d);
+    toast("Key baru dibuat untuk " + d.email, "ok");
+    loadUsers();
+  }).catch(function(err){ showMsg($("adminMsg"), "Gagal: " + err.message, false); });
+}
+function adminToggleActive(email, active){
+  api("admin.setActive", { email: email, active: active }).then(function(){
+    toast((active ? "Diaktifkan: " : "Dinonaktifkan: ") + email, "info");
+    loadUsers();
+  }).catch(function(err){ showMsg($("adminMsg"), "Gagal: " + err.message, false); });
+}
+
+/* ============================================================
+   MOBILE TABS / SKELETON / FORM STATE
+   ============================================================ */
+function isDesktop(){
+  if (document.documentElement.classList.contains("force-mobile")) return false;
+  return window.matchMedia("(min-width: 768px)").matches;
+}
+
+function applyForcedMobile(){
+  var el = document.documentElement;
+  var screenW = (window.screen && window.screen.width) ? window.screen.width : 9999;
+  var bug = screenW < 768 && window.innerWidth > 700;
+  el.classList.toggle("force-mobile", bug);
+  if (bug){
+    var factor = Math.min(3, Math.max(1, window.innerWidth / Math.max(320, screenW)));
+    el.style.zoom = factor.toFixed(2);
+  } else {
+    el.style.zoom = "";
+  }
+  applyMobileTab();
+}
+
+function renderMobileTabs(){
+  var host = $("mobileTabs");
+  if (!host) return;
+  var items = [
+    { v: "builder", label: "Buat Job", icon: "wand-sparkles" },
+    { v: "jobs", label: "Job Saya", icon: "list-checks" }
+  ];
+  if (ME && ME.is_admin) items.push({ v: "admin", label: "Admin", icon: "shield-check" });
+  host.innerHTML = items.map(function(it){
+    var active = MOBILE_TAB === it.v;
+    return '<button class="btn flex-1 py-2 text-xs rounded-lg inline-flex items-center justify-center gap-1 ' +
+      (active ? "grad-brand text-white" : "text-slate-600 dark:text-slate-300") +
+      '" onclick="setMobileTab(\'' + it.v + '\')"><i data-lucide="' + it.icon + '" class="w-3.5 h-3.5"></i>' + it.label + '</button>';
+  }).join("");
+  icons();
+  applyMobileTab();
+}
+function setMobileTab(name){ MOBILE_TAB = name; renderMobileTabs(); }
+function applyMobileTab(){
+  var builder = $("secBuilder"), jobs = $("secJobs"), admin = $("adminBox");
+  if (isDesktop()){
+    if (builder) builder.classList.remove("hidden");
+    if (jobs) jobs.classList.remove("hidden");
+    if (admin) admin.classList.toggle("hidden", !(ME && ME.is_admin));
+    return;
+  }
+  var map = { builder: builder, jobs: jobs, admin: admin };
+  Object.keys(map).forEach(function(k){
+    var el = map[k];
+    if (!el) return;
+    if (k === "admin" && !(ME && ME.is_admin)){ el.classList.add("hidden"); return; }
+    el.classList.toggle("hidden", k !== MOBILE_TAB);
+  });
+}
+window.addEventListener("resize", applyMobileTab);
+
+function renderSkeleton(){
+  var kpi = $("kpiRow");
+  if (kpi && !kpi.children.length){
+    var card = '<div class="glass rounded-2xl shadow-lg p-4 flex items-center gap-3 animate-pulse">' +
+      '<div class="w-11 h-11 rounded-xl bg-slate-300/50 dark:bg-slate-700/60"></div>' +
+      '<div class="flex-1"><div class="h-3 w-24 bg-slate-300/50 dark:bg-slate-700/60 rounded"></div>' +
+      '<div class="h-5 w-16 bg-slate-300/50 dark:bg-slate-700/60 rounded mt-2"></div></div></div>';
+    kpi.innerHTML = card + card + card + card;
+  }
+  var body = $("jobsBody");
+  if (body && !body.children.length){
+    var row = '<tr class="animate-pulse"><td colspan="8" class="py-3"><div class="h-3 w-full bg-slate-300/40 dark:bg-slate-700/50 rounded"></div></td></tr>';
+    body.innerHTML = row + row + row;
+  }
+}
+
+function saveFormState(){
+  try {
+    localStorage.setItem(FORM_KEY, JSON.stringify({
+      country: $("country").value,
+      brand: $("brand").value,
+      level: $("level").value,
+      mode: $("mode").value,
+      tile: $("tile").value,
+      relevance: RELEVANCE,
+      radius: RADIUS,
+      radiusManual: $("radiusManual") ? $("radiusManual").value : "",
+      keep: $("keepNoCoords") ? !!$("keepNoCoords").checked : true,
+      provinsi: MS.provinsi.getSelected(),
+      kota: MS.kota.getSelected(),
+      kecamatan: MS.kecamatan.getSelected()
+    }));
+  } catch(e){}
+}
+function loadFormState(){
+  try { return JSON.parse(localStorage.getItem(FORM_KEY) || "null"); } catch(e){ return null; }
+}
+function applyFormState(s){
+  if (!s || !INDEX) return;
+  try {
+    if (s.level && INDEX.levels.indexOf(s.level) >= 0){ $("level").value = s.level; }
+    if (s.provinsi && s.provinsi.length){ MS.provinsi.setSelected(s.provinsi); }
+    rebuildCities();
+    if (s.kota && s.kota.length){ MS.kota.setSelected(s.kota); }
+    rebuildKecamatan();
+    if (s.kecamatan && s.kecamatan.length){ MS.kecamatan.setSelected(s.kecamatan); }
+    if (s.mode){ $("mode").value = s.mode; }
+    if (s.tile){ $("tile").value = s.tile; }
+    if (s.relevance) RELEVANCE = s.relevance;
+    if (s.radius) RADIUS = s.radius;
+    if ($("radiusManual") && s.radiusManual){ $("radiusManual").value = s.radiusManual; }
+    if ($("keepNoCoords")) $("keepNoCoords").checked = s.keep !== false;
+    if (s.brand) $("brand").value = s.brand;
+    renderLevelCards(); renderModeCards(); renderTileCards(); renderRelevanceCards(); renderRadiusCards();
+    syncLevelUI(); renderChips(); recalc(); brandHintCheck();
+  } catch(e){}
+}
+function wireFormState(){
+  ["country", "level", "mode", "tile", "brand", "radiusManual", "keepNoCoords"].forEach(function(id){
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener("change", saveFormState);
+    el.addEventListener("input", saveFormState);
+  });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+var _searchTimer = null;
+$("jobSearch") && $("jobSearch").addEventListener("input", function(e){
+  var val = e.target.value;
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(function(){ FILTER.q = val; renderJobs(); }, 200);
+});
+$("level") && $("level").addEventListener("change", syncLevelUI);
+$("mode") && $("mode").addEventListener("change", function(){ renderModeCards(); recalc(); });
+$("tile") && $("tile").addEventListener("change", function(){ renderTileCards(); recalc(); });
+$("brand") && $("brand").addEventListener("keydown", function(e){ if (e.key === "Enter") submitJob(e); });
+$("brand") && $("brand").addEventListener("input", brandHintCheck);
+window.addEventListener("load", function(){
+  applyTheme(localStorage.getItem(THEME_KEY) || "system");
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+      if ((localStorage.getItem(THEME_KEY) || "system") === "system") applyTheme("system");
+    });
+  } catch(e){}
+  renderModeCards(); renderTileCards(); renderCountryTabs(); renderBrandChips(); renderStatusFilter();
+  renderPresetCards(); renderRadiusCards(); renderRelevanceCards(); brandHintCheck();
+  renderMobileTabs(); wireFormState(); applyForcedMobile();
+  window.addEventListener("resize", applyForcedMobile);
+  icons();
+  initConfig();
+});
+</script>
+</body>
+</html>

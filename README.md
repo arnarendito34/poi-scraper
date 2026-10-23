@@ -61,10 +61,10 @@ Regenerate index dropdown: `python admin/build_index.py`
 ## Deploy
 
 ### 1. Repo GitHub (public)
-1. Buat repo public `poi-scraper` di akun `RamaIdsan`.
+1. Buat repo public `poi-scraper` di akun `arnarendito34`.
 2. Push:
 ```
-git remote add origin https://github.com/RamaIdsan/poi-scraper.git
+git remote add origin https://github.com/arnarendito34/poi-scraper.git
 git branch -M main
 git push -u origin main
 ```
@@ -88,7 +88,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | isi penuh file JSON service account |
 | `SHEET_ID` | ID spreadsheet |
 | `DRIVE_FOLDER_ID` | ID folder Drive |
-| `SHARE_EMAIL` | `ramaidsan9995@gmail.com` |
+| `SHARE_EMAIL` | `renditobloggerspot@gmail.com` |
 
 ### 5. GitHub PAT (untuk Apps Script memicu workflow)
 Fine-grained token → Repository access: `poi-scraper` → Permissions:
@@ -105,7 +105,7 @@ Simpan token (dipakai di Script Properties `GITHUB_PAT`).
    - `SHEET_ID`
    - `GITHUB_PAT`
    - `DRIVE_FOLDER_ID` (folder Drive hasil; boleh juga via `setDriveFolder("id")`)
-   - (opsional) `GITHUB_OWNER=RamaIdsan`, `GITHUB_REPO=poi-scraper`, `GITHUB_REF=main`, `INDEX_BASE`, `ADMIN_EMAILS`, `DEFAULT_QUOTA`, `MAX_PARALLEL`, `OAUTH_CLIENT_ID`
+   - (opsional) `GITHUB_OWNER=arnarendito34`, `GITHUB_REPO=poi-scraper`, `GITHUB_REF=main`, `INDEX_BASE`, `ADMIN_EMAILS`, `DEFAULT_QUOTA`, `MAX_PARALLEL`, `OAUTH_CLIENT_ID`
    > `setup()` akan mengisi nilai default bila kosong.
    > CSV diekspor oleh Apps Script (`exportCompleted`, trigger tiap 5 menit) karena service account tidak punya kuota Drive pribadi.
 5. Jalankan fungsi `setup()` lalu `setupTriggers()` (izinkan akses saat diminta).
@@ -116,7 +116,7 @@ Simpan token (dipakai di Script Properties `GITHUB_PAT`).
 
 ### 7. Bootstrap admin & API key pertama
 Panel Admin hanya muncul setelah login, jadi key pertama harus dibuat dari editor:
-1. (Bila perlu) jalankan `setAdminEmails("ramaidsan9995@gmail.com")`.
+1. (Bila perlu) jalankan `setAdminEmails("renditobloggerspot@gmail.com")`.
 2. Jalankan fungsi **`bootstrapAdmin()`** dari editor Apps Script.
 3. Buka **Execution log** (View → Logs) dan salin baris `API KEY : poi_...`.
 4. Buka Web App, tempel key di kolom API key → login. Panel Admin muncul untuk membuat key user lain.

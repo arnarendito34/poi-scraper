@@ -69,7 +69,7 @@ GitHub Actions: plan → scrape (matrix per provinsi) → merge
   semua provinsi → 516 target, 38 chunk).
 
 ## Deploy (setiap perubahan)
-1. `git -C poi-scraper push origin main` (repo **public**, owner `RamaIdsan`).
+1. `git push origin main` (repo **public**, owner `arnarendito34`).
 2. Apps Script: replace `Code.gs` + `Index.html` → Save.
 3. Jika header `Jobs`/`Users` berubah → jalankan `setup()`.
 4. **Deploy → Manage deployments → Edit → Version: New version**.

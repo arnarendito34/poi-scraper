@@ -28,7 +28,7 @@ GitHub Actions (Playwright)  ──►  Google Drive (CSV final)
 
 Lihat `README.md` bagian **Deploy**. Ringkasnya:
 
-1. Push repo ke GitHub (`RamaIdsan/poi-scraper`).
+1. Push repo ke GitHub (`arnarendito34/poi-scraper`).
 2. Buat Google Sheet (`SHEET_ID`), folder Drive (`DRIVE_FOLDER_ID`), dan **service account**.
 3. Share Sheet + folder ke email service account (Editor).
 4. Set GitHub Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `DRIVE_FOLDER_ID`, `SHARE_EMAIL`.

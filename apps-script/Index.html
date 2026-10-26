@@ -345,6 +345,135 @@
       <div id="jobsEmpty" class="hidden text-center text-sm text-slate-500 dark:text-slate-400 py-8">Belum ada job.</div>
     </section>
 
+    <!-- CLEANING -->
+    <section id="secCleaning" class="glass rounded-2xl shadow-xl p-5">
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <i data-lucide="filter" class="w-5 h-5 text-amber-500"></i>
+        <h2 class="font-bold mr-2">Cleaning Data</h2>
+        <span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><i data-lucide="shield-check" class="w-3 h-3"></i>review manual</span>
+        <div class="flex-1"></div>
+        <button class="btn px-3 py-2 glass-soft text-sm inline-flex items-center gap-2" onclick="refreshCleanings()">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i><span class="hidden sm:inline">Refresh</span>
+        </button>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-5">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Sumber data</label>
+            <div class="inline-flex p-1 rounded-xl glass-soft gap-1 w-full">
+              <button id="cleanTabJob" class="btn flex-1 py-2 text-xs rounded-lg inline-flex items-center justify-center gap-1 grad-brand text-white" onclick="setCleanSource('job')">
+                <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>Job selesai
+              </button>
+              <button id="cleanTabCsv" class="btn flex-1 py-2 text-xs rounded-lg inline-flex items-center justify-center gap-1 text-slate-600 dark:text-slate-300" onclick="setCleanSource('csv')">
+                <i data-lucide="file-up" class="w-3.5 h-3.5"></i>Upload CSV
+              </button>
+            </div>
+          </div>
+
+          <div id="cleanJobWrap">
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Pilih job selesai</label>
+            <select id="cleanJob" onchange="onCleanJobChange()" class="w-full px-3 py-2.5 rounded-xl glass-soft text-sm">
+              <option value="">Memuat job selesai...</option>
+            </select>
+            <p id="cleanJobHint" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+              Hanya job berstatus <b>done</b>. Nama kompetitor terisi otomatis dari job.
+            </p>
+          </div>
+
+          <div id="cleanCsvWrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">File CSV</label>
+            <div id="cleanDrop" class="rounded-xl border border-dashed border-cyan-500/40 bg-cyan-500/5 p-4 text-center transition-colors">
+              <input id="cleanFile" type="file" accept=".csv,text/csv" class="hidden" onchange="onCleanFileChange(event)">
+              <div class="w-10 h-10 mx-auto rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 flex items-center justify-center mb-2">
+                <i data-lucide="file-up" class="w-5 h-5"></i>
+              </div>
+              <div class="text-sm font-semibold">Tarik &amp; lepas CSV di sini</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">atau</div>
+              <button class="btn glass-soft px-3 py-1.5 text-xs mt-2 inline-flex items-center gap-1" onclick="document.getElementById('cleanFile').click()">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>Pilih file
+              </button>
+              <div id="cleanFileInfo" class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Belum ada file dipilih.</div>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+              Kolom wajib: Name_geocode, Address_geocode, Longitude_geocode, Latitude_geocode, Category_geocode.
+              <b>Source_URL</b> opsional untuk tombol buka Maps.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama kompetitor</label>
+            <div class="relative">
+              <i data-lucide="store" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input id="cleanBrand" placeholder="Alfamart | Alfa" autocomplete="off"
+                class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm">
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+              Boleh lebih dari satu, pisahkan dengan <b>|</b> (mis. <b>Alfamart | Alfa</b>); koma/titik koma juga bisa.
+              Nama yang tidak diawali kompetitor langsung dihapus.
+            </p>
+          </div>
+
+          <details class="glass-soft rounded-xl p-3">
+            <summary class="cursor-pointer font-semibold text-sm flex items-center gap-2">
+              <i data-lucide="filter" class="w-4 h-4"></i> Blacklist opsional
+            </summary>
+            <div class="mt-3 space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Blacklist nama <span class="font-normal">(opsional)</span></label>
+                <textarea id="cleanBlacklistNames" rows="2" placeholder="Jaya, Diesel, Kantor"
+                  class="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm resize-y"></textarea>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                  Dicocokkan ke <b>Name_geocode</b>. Kosong = tanpa filter nama.
+                </p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Blacklist kategori <span class="font-normal">(opsional)</span></label>
+                <textarea id="cleanBlacklistCategories" rows="3" placeholder="Coffee shop, Restaurant, Bank"
+                  class="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm resize-y"></textarea>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                  Dicocokkan ke <b>Category_geocode</b>. Kosong = tanpa filter kategori.
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Pisahkan dengan koma atau baris baru. Klik <b>Muat bawaan</b> untuk memakai daftar dari script.</p>
+                <button type="button" class="btn glass-soft px-3 py-1.5 text-xs inline-flex items-center gap-1" onclick="fillCleanDefaults()">
+                  <i data-lucide="wand-sparkles" class="w-3.5 h-3.5"></i>Muat bawaan
+                </button>
+              </div>
+            </div>
+          </details>
+
+          <button id="btnStartClean" class="btn grad-brand text-white w-full py-3 text-base" onclick="startCleaning()">
+            <span class="inline-flex items-center gap-2"><i data-lucide="scan-search" class="w-5 h-5"></i>Mulai Cleaning</span>
+          </button>
+          <div id="cleanMsg" class="msg hidden text-sm rounded-lg p-2.5"></div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Sesi cleaning</div>
+            <span id="cleanCount" class="text-[11px] text-slate-500 dark:text-slate-400">0 sesi</span>
+          </div>
+          <div id="cleaningsList" class="space-y-2 max-h-[420px] overflow-auto scroll-thin pr-1"></div>
+          <div id="cleaningsEmpty" class="text-center text-sm text-slate-500 dark:text-slate-400 py-8">Belum ada sesi cleaning.</div>
+
+          <details class="glass-soft rounded-xl p-3">
+            <summary class="cursor-pointer font-semibold text-sm flex items-center gap-2">
+              <i data-lucide="book-open" class="w-4 h-4"></i> Aturan cleaning otomatis
+            </summary>
+            <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed space-y-1">
+              <p><b>1.</b> Nama wajib diawali salah satu nama kompetitor (case-insensitive, spasi/tanda hubung lentur; pisahkan beberapa nama dengan <b>|</b>).</p>
+              <p><b>2.</b> Nama yang memuat salah satu blacklist nama (opsional) ditandai berisiko.</p>
+              <p><b>3.</b> Kategori yang memuat salah satu blacklist kategori (opsional) ditandai berisiko; dicocokkan ke <b>Category_geocode</b>.</p>
+              <p><b>4.</b> Nama yang tidak diawali kompetitor <b>langsung dihapus</b>. Baris berisiko blacklist tidak dihapus otomatis &mdash; wajib diputuskan di review manual.</p>
+              <p class="pt-1">Blacklist kosong = tidak ada filter tambahan. Hasil akhir: 5 kolom &mdash; Name_geocode, Address_geocode, Longitude_geocode, Latitude_geocode, Category_geocode.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
     <!-- ADMIN -->
     <section id="adminBox" class="hidden glass rounded-2xl shadow-xl p-5">
       <div class="flex items-center gap-2 mb-4">
@@ -436,6 +565,36 @@
   </div>
 </div>
 
+<div id="modalCleanReview" class="hidden fixed inset-0 z-[130] p-0 sm:p-4 flex items-start sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Review Cleaning">
+  <div class="absolute inset-0 bg-black/60" onclick="closeCleanReview()"></div>
+  <div class="modal-panel relative glass rounded-none sm:rounded-2xl w-full h-full sm:h-auto max-w-4xl sm:max-h-[90vh] p-4 sm:p-5 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between gap-2 mb-3 shrink-0">
+      <h3 class="font-bold flex items-center gap-2 min-w-0">
+        <i data-lucide="scan-search" class="w-4 h-4 shrink-0"></i>
+        <span class="truncate">Review Cleaning <span id="cleanReviewTitle" class="text-xs font-normal text-slate-500 dark:text-slate-400"></span></span>
+      </h3>
+      <div class="flex gap-2 shrink-0">
+        <a id="cleanReviewTab" class="btn px-3 py-1.5 glass-soft text-xs hidden" target="_blank" href="#">Tab review</a>
+        <button aria-label="Tutup" class="btn p-2 glass-soft" onclick="closeCleanReview()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+
+    <div id="cleanReviewStats" class="shrink-0"></div>
+
+    <div class="flex flex-wrap items-center gap-2 my-3 shrink-0">
+      <div id="cleanFilters" class="flex flex-wrap gap-1"></div>
+      <div class="relative flex-1 min-w-[150px]">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input id="cleanSearch" placeholder="Cari nama / alamat / kategori..." oninput="onCleanSearch()"
+          class="w-full pl-9 pr-3 py-2 rounded-xl glass-soft text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+      </div>
+    </div>
+
+    <div id="cleanReviewBody" class="flex-1 min-h-0 overflow-auto scroll-thin"></div>
+    <div id="cleanReviewFooter" class="shrink-0 pt-3"></div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    STATE
@@ -456,6 +615,14 @@ var THEME_KEY = "poi_theme";
 var PENDING_RESTORE = null;
 var MOBILE_TAB = "builder";
 var FORM_KEY = "poi_form_v1";
+var CLEANINGS = [];
+var CLEAN = null;
+var CLEAN_SOURCE = "job";
+var CLEAN_UPLOAD = null;
+var CLEAN_DEFAULTS = null;
+var CLEAN_PAGE_SIZE = 100;
+var CLEAN_SEARCH_TIMER = null;
+var CLEAN_FLUSH_TIMER = null;
 
 /* ============================================================
    UTILS
@@ -528,7 +695,7 @@ function detectTransitions(list){
   });
 }
 
-var MODAL_IDS = ["modalPreview", "modalLogs", "modalDiag", "modalDetail"];
+var MODAL_IDS = ["modalPreview", "modalLogs", "modalDiag", "modalDetail", "modalCleanReview"];
 function openModal(id){
   var m = $(id);
   if (!m) return;
@@ -545,7 +712,12 @@ function closeModal(id){
   if (m.__prevFocus && m.__prevFocus.focus){ try { m.__prevFocus.focus(); } catch(e){} }
 }
 document.addEventListener("keydown", function(e){
-  if (e.key === "Escape"){ MODAL_IDS.forEach(closeModal); return; }
+  if (e.key === "Escape"){
+    var cleanModal = $("modalCleanReview");
+    if (cleanModal && !cleanModal.classList.contains("hidden")) return;
+    MODAL_IDS.forEach(closeModal);
+    return;
+  }
   if (e.key === "Tab"){
     var open = MODAL_IDS.map($).filter(function(m){ return m && !m.classList.contains("hidden"); })[0];
     if (!open) return;
@@ -672,6 +844,9 @@ function tryLogin(){
     renderModeCards(); renderTileCards(); renderCountryTabs(); renderBrandChips(); renderStatusFilter();
     renderPresetCards(); renderRadiusCards(); renderRelevanceCards(); brandHintCheck();
     renderSkeleton();
+    setCleanSource(CLEAN_SOURCE);
+    renderCleanJobOptions();
+    refreshCleanings().catch(function(){});
     refreshAll(true);
     startPolling();
     icons();
@@ -687,6 +862,8 @@ function logout(){
   localStorage.removeItem("poi_idtoken");
   localStorage.removeItem("poi_apikey");
   ME = null; JOBS = []; INDEX = null;
+  CLEANINGS = []; CLEAN = null; CLEAN_UPLOAD = null; CLEAN_DEFAULTS = null;
+  renderCleanings();
   $("app").classList.add("hidden");
   $("loginCard").classList.remove("hidden");
   $("apiKey").value = "";
@@ -1130,6 +1307,20 @@ function jobCancel(jobId){
     refreshAll(true);
   }).catch(function(err){ toast("Gagal stop: " + err.message, "err"); });
 }
+function jobDelete(jobId){
+  var job = JOBS.filter(function(x){ return String(x.job_id) === String(jobId); })[0] || {};
+  var label = (job.brand ? job.brand + " " : "job ") + "(" + String(jobId).slice(0, 8) + ")";
+  if (!confirm("Hapus permanen " + label + "?\n\nTab hasil, file CSV di Drive, dan log job ini ikut dihapus. Tindakan ini tidak bisa dibatalkan.")) return;
+  api("jobs.delete", { job_id: jobId }).then(function(res){
+    var warnings = (res && res.warnings) || [];
+    toast("Job " + label + " dihapus" + (warnings.length ? " (" + warnings.join("; ") + ")" : ""),
+      warnings.length ? "info" : "ok");
+    refreshAll(true);
+  }).catch(function(err){
+    toast("Gagal hapus: " + err.message, "err");
+    refreshAll(true);
+  });
+}
 function jobResume(jobId){
   api("jobs.resume", { job_id: jobId }).then(function(){
     toast("Job dilanjutkan — menunggu antrean.", "ok");
@@ -1144,6 +1335,831 @@ function rerunZero(jobId){
     refreshAll(true);
   }).catch(function(err){ toast("Gagal: " + err.message, "err"); });
 }
+
+/* ============================================================
+   CLEANING DATA (otomatis + review manual)
+   ============================================================ */
+function setCleanSource(kind){
+  CLEAN_SOURCE = kind === "csv" ? "csv" : "job";
+  var jobBtn = $("cleanTabJob"), csvBtn = $("cleanTabCsv");
+  var active = "btn flex-1 py-2 text-xs rounded-lg inline-flex items-center justify-center gap-1 grad-brand text-white";
+  var idle = "btn flex-1 py-2 text-xs rounded-lg inline-flex items-center justify-center gap-1 text-slate-600 dark:text-slate-300";
+  if (jobBtn) jobBtn.className = CLEAN_SOURCE === "job" ? active : idle;
+  if (csvBtn) csvBtn.className = CLEAN_SOURCE === "csv" ? active : idle;
+  var jw = $("cleanJobWrap"), cw = $("cleanCsvWrap");
+  if (jw) jw.classList.toggle("hidden", CLEAN_SOURCE !== "job");
+  if (cw) cw.classList.toggle("hidden", CLEAN_SOURCE !== "csv");
+  icons();
+}
+
+function renderCleanJobOptions(){
+  var sel = $("cleanJob");
+  if (!sel) return;
+  var current = sel.value;
+  var done = (JOBS || []).filter(function(j){
+    return String(j.status || "").toLowerCase() === "done" && j.result_sheet;
+  });
+  var html = ['<option value="">&mdash; Pilih job selesai &mdash;</option>'];
+  done.forEach(function(j){
+    var label = (j.brand || "?") + " · " + num(j.records || 0) + " records · " + (j.finished_at || j.created_at || "");
+    html.push('<option value="' + esc(j.job_id) + '">' + esc(label) + '</option>');
+  });
+  if (!done.length) html.push('<option value="" disabled>Belum ada job selesai</option>');
+  sel.innerHTML = html.join("");
+  if (current && done.some(function(j){ return String(j.job_id) === String(current); })) sel.value = current;
+  var hint = $("cleanJobHint");
+  if (hint){
+    hint.innerHTML = done.length
+      ? ('Hanya job berstatus <b>done</b>. ' + done.length + ' job tersedia. Nama kompetitor terisi otomatis dari job.')
+      : 'Belum ada job berstatus <b>done</b>. Selesaikan scraping dulu atau unggah CSV.';
+  }
+}
+
+function onCleanJobChange(){
+  var id = $("cleanJob") ? $("cleanJob").value : "";
+  if (!id) return;
+  var job = (JOBS || []).filter(function(j){ return String(j.job_id) === String(id); })[0];
+  if (job && $("cleanBrand")) $("cleanBrand").value = job.brand || "";
+}
+
+function formatFileSize_(bytes){
+  var n = Number(bytes || 0);
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function suggestCleanBrand_(filename){
+  var base = String(filename || "").replace(/\.[^.]+$/, "");
+  var out = base.match(/^Output[_-]([^_-]+)/i);
+  if (out) return out[1].replace(/[_-]+/g, " ").trim();
+  var skip = { output: 1, input: 1, clean: 1, result: 1, csv: 1, data: 1, hasil: 1, review: 1 };
+  var parts = base.split(/[_\-\s]+/).filter(Boolean);
+  for (var i = 0; i < parts.length; i++){
+    var p = parts[i];
+    if (skip[String(p).toLowerCase()]) continue;
+    if (/^\d{4,}$/.test(p)) continue;
+    if (/^[a-f0-9]{8}$/i.test(p)) continue;
+    return p;
+  }
+  return "";
+}
+
+function loadCleanFile(file){
+  if (!file) return;
+  var info = $("cleanFileInfo");
+  if (file.size > 25 * 1024 * 1024){
+    CLEAN_UPLOAD = null;
+    if (info) info.textContent = "File terlalu besar (maksimal ±25 MB).";
+    showMsg($("cleanMsg"), "File CSV terlalu besar (maksimal ±25 MB).", false);
+    return;
+  }
+  if (info) info.textContent = "Membaca " + file.name + " (" + formatFileSize_(file.size) + ")...";
+  var reader = new FileReader();
+  reader.onload = function(e){
+    CLEAN_UPLOAD = { name: file.name, text: String(e.target.result || "") };
+    if (info){
+      info.innerHTML = '<span class="text-emerald-600 dark:text-emerald-300 font-semibold">' + esc(file.name) +
+        '</span> · ' + esc(formatFileSize_(file.size)) + ' · siap dibersihkan';
+    }
+    if ($("cleanBrand") && !$("cleanBrand").value.trim()){
+      var suggested = suggestCleanBrand_(file.name);
+      if (suggested) $("cleanBrand").value = suggested;
+    }
+    showMsg($("cleanMsg"), "File siap dibersihkan: " + file.name, true);
+  };
+  reader.onerror = function(){
+    CLEAN_UPLOAD = null;
+    if (info) info.textContent = "Gagal membaca file.";
+    showMsg($("cleanMsg"), "Gagal membaca file CSV.", false);
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function onCleanFileChange(ev){
+  var file = ev && ev.target && ev.target.files ? ev.target.files[0] : null;
+  if (file) loadCleanFile(file);
+}
+
+function cleanListFromText_(text){
+  var seen = {};
+  var out = [];
+  String(text || "").split(/[\n,;]+/).forEach(function(term){
+    term = term.trim();
+    if (!term) return;
+    var key = term.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(seen, key)) return;
+    seen[key] = true;
+    out.push(term);
+  });
+  return out;
+}
+
+function loadCleanDefaults(){
+  if (CLEAN_DEFAULTS) return Promise.resolve(CLEAN_DEFAULTS);
+  return api("cleaning.defaults", {}).then(function(res){
+    CLEAN_DEFAULTS = res || {};
+    return CLEAN_DEFAULTS;
+  }).catch(function(err){
+    CLEAN_DEFAULTS = {};
+    showMsg($("cleanMsg"), "Gagal memuat blacklist bawaan: " + err.message, false);
+    return CLEAN_DEFAULTS;
+  });
+}
+
+function fillCleanDefaults(){
+  loadCleanDefaults().then(function(def){
+    var names = $("cleanBlacklistNames");
+    var categories = $("cleanBlacklistCategories");
+    var filled = false;
+    if (names && !names.value.trim()){
+      names.value = (def.blacklist_names || []).join(", ");
+      filled = filled || !!names.value;
+    }
+    if (categories && !categories.value.trim()){
+      categories.value = (def.blacklist_categories || []).join(", ");
+      filled = filled || !!categories.value;
+    }
+    if (filled) showMsg($("cleanMsg"), "Blacklist bawaan dimuat. Field bisa diubah atau dikosongkan.", true);
+  });
+}
+
+function startCleaning(){
+  if (!ME) return;
+  var brand = $("cleanBrand") ? $("cleanBrand").value.trim() : "";
+  if (!brand){
+    showMsg($("cleanMsg"), "Nama kompetitor wajib diisi.", false);
+    return;
+  }
+  var payload = {
+    brand: brand,
+    source_type: CLEAN_SOURCE,
+    blacklist_names: cleanListFromText_($("cleanBlacklistNames") ? $("cleanBlacklistNames").value : ""),
+    blacklist_categories: cleanListFromText_($("cleanBlacklistCategories") ? $("cleanBlacklistCategories").value : "")
+  };
+  if (CLEAN_SOURCE === "job"){
+    var jobId = $("cleanJob") ? $("cleanJob").value : "";
+    if (!jobId){
+      showMsg($("cleanMsg"), "Pilih job selesai terlebih dahulu.", false);
+      return;
+    }
+    payload.job_id = jobId;
+  } else {
+    if (!CLEAN_UPLOAD || !CLEAN_UPLOAD.text){
+      showMsg($("cleanMsg"), "Pilih file CSV terlebih dahulu.", false);
+      return;
+    }
+    payload.csv_text = CLEAN_UPLOAD.text;
+    payload.filename = CLEAN_UPLOAD.name;
+  }
+  var btn = $("btnStartClean");
+  var original = btn ? btn.innerHTML : "";
+  if (btn){
+    btn.disabled = true;
+    btn.className = "btn grad-brand text-white w-full py-3 text-base opacity-70";
+    btn.innerHTML = '<span class="inline-flex items-center gap-2"><i data-lucide="loader-2" class="w-5 h-5 spin"></i>Membersihkan...</span>';
+  }
+  icons();
+  showMsg($("cleanMsg"), "Memproses data...", true);
+  api("cleaning.start", payload).then(function(res){
+    if (btn){ btn.disabled = false; btn.className = "btn grad-brand text-white w-full py-3 text-base"; btn.innerHTML = original; }
+    icons();
+    showMsg($("cleanMsg"), "Selesai: " + num(res.total) + " baris · " + num(res.safe) +
+      " aman · " + num(res.removed) + " langsung dihapus · " + num(res.pending) + " perlu review.", true);
+    toast("Cleaning dibuat: " + res.brand +
+      (res.removed ? " · " + num(res.removed) + " langsung dihapus" : "") +
+      (res.pending ? " · " + num(res.pending) + " perlu review" : ""), "ok");
+    refreshCleanings().catch(function(){});
+  }).catch(function(err){
+    if (btn){ btn.disabled = false; btn.className = "btn grad-brand text-white w-full py-3 text-base"; btn.innerHTML = original; }
+    icons();
+    showMsg($("cleanMsg"), "Gagal cleaning: " + err.message, false);
+    toast("Gagal cleaning: " + err.message, "err");
+  });
+}
+
+function cleanCsvUrl_(url){
+  url = String(url || "");
+  if (url.indexOf("/edit#gid=") >= 0) return url.replace("/edit#gid=", "/export?format=csv&gid=");
+  return url;
+}
+
+function refreshCleanings(){
+  if (!ME) return Promise.resolve([]);
+  return api("cleaning.list", {}).then(function(list){
+    CLEANINGS = list || [];
+    renderCleanings();
+    return CLEANINGS;
+  }).catch(function(err){
+    toast("Gagal memuat cleaning: " + err.message, "err");
+    return CLEANINGS;
+  });
+}
+
+function cleanStatusChip_(status){
+  var s = String(status || "").toLowerCase();
+  if (s === "done") return '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><i data-lucide="check" class="w-3 h-3"></i>done</span>';
+  return '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><i data-lucide="scan-search" class="w-3 h-3"></i>review</span>';
+}
+
+function renderCleanings(){
+  var host = $("cleaningsList"), empty = $("cleaningsEmpty"), count = $("cleanCount");
+  if (!host) return;
+  if (count) count.textContent = (CLEANINGS || []).length + " sesi";
+  if (!CLEANINGS || !CLEANINGS.length){
+    host.innerHTML = "";
+    if (empty) empty.classList.remove("hidden");
+    icons();
+    return;
+  }
+  if (empty) empty.classList.add("hidden");
+  host.innerHTML = CLEANINGS.map(function(c){
+    var total = Number(c.total || 0);
+    var pending = Number(c.pending || 0);
+    var decided = Math.max(0, total - pending);
+    var pct = total ? Math.round((decided / total) * 100) : 0;
+    var source = c.source_type === "job"
+      ? ("Job selesai" + (c.source_name ? " · " + c.source_name : ""))
+      : ("Upload CSV" + (c.source_name ? " · " + c.source_name : ""));
+    var actions = [];
+    if (c.status !== "done"){
+      actions.push('<button class="btn grad-brand text-white px-3 py-1.5 text-[11px] inline-flex items-center gap-1" onclick="openCleanReview(\'' + esc(c.clean_id) + '\')"><i data-lucide="scan-search" class="w-3 h-3"></i>Review</button>');
+    } else {
+      if (c.final_url) actions.push('<a class="btn glass-soft px-3 py-1.5 text-[11px] inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(c.final_url) + '"><i data-lucide="table" class="w-3 h-3"></i>Tab hasil</a>');
+      var csv = c.csv_url || cleanCsvUrl_(c.final_url);
+      if (csv) actions.push('<a class="btn glass-soft px-3 py-1.5 text-[11px] inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(csv) + '"><i data-lucide="download" class="w-3 h-3"></i>CSV</a>');
+    }
+    if (c.tab_url) actions.push('<a class="btn glass-soft px-3 py-1.5 text-[11px] inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(c.tab_url) + '"><i data-lucide="table-2" class="w-3 h-3"></i>Tab review</a>');
+    actions.push('<button class="btn glass-soft text-rose-500 px-3 py-1.5 text-[11px] inline-flex items-center gap-1" onclick="deleteCleaning(\'' + esc(c.clean_id) + '\')"><i data-lucide="trash-2" class="w-3 h-3"></i>Hapus</button>');
+    return '<div class="glass-soft rounded-xl p-3 space-y-2">' +
+      '<div class="flex items-start justify-between gap-2">' +
+        '<div class="min-w-0"><div class="font-bold truncate">' + esc(c.brand || "-") + '</div>' +
+        '<div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">' + esc(source) + ' · ' + esc(c.created_at || "") + '</div></div>' +
+        cleanStatusChip_(c.status) +
+      '</div>' +
+      '<div class="flex flex-wrap gap-1.5 text-[10px]">' +
+        '<span class="chip glass-soft">total ' + esc(num(total)) + '</span>' +
+        '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">disimpan ' + esc(num(c.kept)) + '</span>' +
+        '<span class="chip bg-rose-500/15 text-rose-600 dark:text-rose-300">dihapus ' + esc(num(c.removed)) + '</span>' +
+        '<span class="chip ' + (pending ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" : "glass-soft") + '">belum ' + esc(num(pending)) + '</span>' +
+      '</div>' +
+      '<div class="flex items-center gap-2">' +
+        '<div class="flex-1 h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700/60 overflow-hidden"><div class="h-full ' + (c.status === "done" ? "bg-emerald-500" : "grad-brand") + '" style="width:' + pct + '%"></div></div>' +
+        '<span class="text-[10px] text-slate-500 dark:text-slate-400">' + pct + '%</span>' +
+      '</div>' +
+      '<div class="flex flex-wrap gap-1.5">' + actions.join("") + '</div>' +
+    '</div>';
+  }).join("");
+  icons();
+}
+
+function deleteCleaning(cleanId){
+  var item = (CLEANINGS || []).filter(function(c){ return String(c.clean_id) === String(cleanId); })[0] || {};
+  if (!confirm("Hapus sesi cleaning " + (item.brand || "") + "?\n\nTab review, tab hasil, dan CSV di Drive ikut dihapus. Tindakan ini tidak bisa dibatalkan.")) return;
+  api("cleaning.delete", { clean_id: cleanId }).then(function(res){
+    var warnings = (res && res.warnings) || [];
+    toast("Sesi cleaning dihapus" + (warnings.length ? " (" + warnings.join("; ") + ")" : ""), warnings.length ? "info" : "ok");
+    if (CLEAN && CLEAN.id === cleanId) closeCleanReview();
+    refreshCleanings();
+  }).catch(function(err){
+    toast("Gagal hapus cleaning: " + err.message, "err");
+  });
+}
+
+function openCleanReview(cleanId){
+  CLEAN = {
+    id: cleanId, meta: null, rows: [], filtered: 0, offset: 0, index: 0,
+    filter: "all", q: "", loading: false, syncing: false, finishing: false, queue: [], history: [],
+    pendingLoad: null, pendingUndo: null, wantIndex: null, wantLast: false, done: null, reqSeq: 0
+  };
+  var search = $("cleanSearch");
+  if (search) search.value = "";
+  var title = $("cleanReviewTitle");
+  if (title) title.textContent = "";
+  var stats = $("cleanReviewStats");
+  if (stats) stats.innerHTML = "";
+  var filters = $("cleanFilters");
+  if (filters) filters.innerHTML = "";
+  var body = $("cleanReviewBody");
+  if (body) body.innerHTML = '<div class="text-center text-sm text-slate-500 dark:text-slate-400 py-10"><i data-lucide="loader-2" class="w-5 h-5 spin inline-block"></i> Memuat data review...</div>';
+  var footer = $("cleanReviewFooter");
+  if (footer) footer.innerHTML = "";
+  openModal("modalCleanReview");
+  loadCleanPage(true);
+}
+
+function loadCleanPage(reset){
+  if (!CLEAN) return Promise.resolve();
+  if (reset){
+    CLEAN.offset = 0;
+    CLEAN.index = 0;
+  }
+  CLEAN.reqSeq = (CLEAN.reqSeq || 0) + 1;
+  var seq = CLEAN.reqSeq;
+  CLEAN.loading = true;
+  renderCleanReview();
+  var payload = {
+    clean_id: CLEAN.id,
+    filter: CLEAN.filter,
+    q: CLEAN.q,
+    offset: CLEAN.offset,
+    limit: CLEAN_PAGE_SIZE
+  };
+  var p = api("cleaning.get", payload).then(function(res){
+    if (!CLEAN || CLEAN.reqSeq !== seq) return;
+    CLEAN.loading = false;
+    CLEAN.meta = res.clean || {};
+    CLEAN.rows = res.rows || [];
+    CLEAN.filtered = Number(res.filtered || 0);
+    CLEAN.offset = Number(res.offset || 0);
+    if (CLEAN.wantLast){
+      CLEAN.index = Math.max(0, CLEAN.rows.length - 1);
+      CLEAN.wantLast = false;
+    } else if (CLEAN.pendingUndo){
+      var undo = CLEAN.pendingUndo;
+      CLEAN.pendingUndo = null;
+      if (!cleanApplyUndo_(undo)) toast("Baris untuk undo tidak ditemukan.", "err");
+    } else if (CLEAN.wantIndex !== null && CLEAN.wantIndex !== undefined){
+      CLEAN.index = Math.min(Math.max(0, Number(CLEAN.wantIndex)), Math.max(0, CLEAN.rows.length - 1));
+      CLEAN.wantIndex = null;
+    } else if (CLEAN.index >= CLEAN.rows.length){
+      CLEAN.index = 0;
+    }
+    if (!CLEAN.rows.length && CLEAN.filtered > 0 && CLEAN.offset > 0){
+      CLEAN.offset = 0;
+      CLEAN.index = 0;
+      return loadCleanPage(true);
+    }
+    renderCleanReview();
+    return res;
+  }).catch(function(err){
+    if (CLEAN && CLEAN.reqSeq === seq){
+      CLEAN.loading = false;
+      renderCleanReview();
+    }
+    toast("Gagal memuat review: " + err.message, "err");
+    throw err;
+  });
+  CLEAN.pendingLoad = p;
+  return p;
+}
+
+function cleanCurrentRow_(){
+  if (!CLEAN || !CLEAN.rows.length) return null;
+  return CLEAN.rows[CLEAN.index] || null;
+}
+
+function cleanNext(){
+  if (!CLEAN || CLEAN.loading || !CLEAN.rows.length) return;
+  if (CLEAN.index + 1 < CLEAN.rows.length){
+    CLEAN.index++;
+    renderCleanReview();
+    return;
+  }
+  var nextOffset = CLEAN.offset + CLEAN.rows.length;
+  if (nextOffset < CLEAN.filtered){
+    CLEAN.offset = nextOffset;
+    CLEAN.index = 0;
+    loadCleanPage(false);
+    return;
+  }
+  CLEAN.offset = 0;
+  CLEAN.index = 0;
+  if (CLEAN.filtered > CLEAN.rows.length) loadCleanPage(true);
+  else renderCleanReview();
+}
+
+function cleanPrev(){
+  if (!CLEAN || CLEAN.loading || !CLEAN.rows.length) return;
+  if (CLEAN.index > 0){
+    CLEAN.index--;
+    renderCleanReview();
+    return;
+  }
+  if (CLEAN.offset > 0){
+    CLEAN.offset = Math.max(0, CLEAN.offset - CLEAN_PAGE_SIZE);
+    CLEAN.wantLast = true;
+    loadCleanPage(false);
+    return;
+  }
+  if (CLEAN.filtered > CLEAN.rows.length){
+    CLEAN.offset = Math.max(0, Math.floor((CLEAN.filtered - 1) / CLEAN_PAGE_SIZE) * CLEAN_PAGE_SIZE);
+    CLEAN.wantLast = true;
+    loadCleanPage(false);
+  }
+}
+
+function cleanSetFilter(filter){
+  if (!CLEAN || CLEAN.loading || CLEAN.finishing) return;
+  CLEAN.filter = filter || "all";
+  CLEAN.offset = 0;
+  CLEAN.index = 0;
+  loadCleanPage(true);
+}
+
+function onCleanSearch(){
+  if (!CLEAN) return;
+  clearTimeout(CLEAN_SEARCH_TIMER);
+  CLEAN_SEARCH_TIMER = setTimeout(function(){
+    if (!CLEAN) return;
+    CLEAN.q = $("cleanSearch") ? $("cleanSearch").value.trim() : "";
+    CLEAN.offset = 0;
+    CLEAN.index = 0;
+    loadCleanPage(true);
+  }, 350);
+}
+
+function cleanAdjustCounts_(from, to){
+  if (!CLEAN || !CLEAN.meta || from === to) return;
+  var m = CLEAN.meta;
+  function dec(key){ m[key] = Math.max(0, Number(m[key] || 0) - 1); }
+  function inc(key){ m[key] = Number(m[key] || 0) + 1; }
+  if (from === "keep") dec("kept");
+  else if (from === "remove") dec("removed");
+  else dec("pending");
+  if (to === "keep") inc("kept");
+  else if (to === "remove") inc("removed");
+  else inc("pending");
+}
+
+function cleanApplyUndo_(h){
+  if (!CLEAN) return false;
+  var row = null, idx = -1;
+  for (var i = 0; i < CLEAN.rows.length; i++){
+    if (Number(CLEAN.rows[i].row_id) === Number(h.row_id)){ row = CLEAN.rows[i]; idx = i; break; }
+  }
+  if (!row) return false;
+  var current = row.decision || "pending";
+  if (current !== h.prev){
+    row.decision = h.prev;
+    cleanAdjustCounts_(current, h.prev);
+    CLEAN.queue.push({ row_id: row.row_id, decision: h.prev });
+    scheduleCleanFlush();
+  }
+  CLEAN.index = idx;
+  return true;
+}
+
+function cleanDecide(decision){
+  if (!CLEAN || CLEAN.loading || CLEAN.finishing) return;
+  var row = cleanCurrentRow_();
+  if (!row) return;
+  var dec = decision === "remove" ? "remove" : "keep";
+  var previous = row.decision || "pending";
+  if (previous === dec){ cleanNext(); return; }
+  if (dec === "remove" && previous === "keep"){
+    if (!confirm("Hapus baris ini dari hasil?\n\n" + row.name + "\n\nBaris ini sebelumnya DISIMPAN. Gunakan tombol Urungkan bila salah.")) return;
+  }
+  CLEAN.history.push({ row_id: row.row_id, prev: previous, index: CLEAN.index, offset: CLEAN.offset, filter: CLEAN.filter });
+  row.decision = dec;
+  cleanAdjustCounts_(previous, dec);
+  CLEAN.queue.push({ row_id: row.row_id, decision: dec });
+  scheduleCleanFlush();
+  cleanNext();
+}
+
+function cleanUndo(){
+  if (!CLEAN || CLEAN.finishing) return;
+  if (!CLEAN.history.length){
+    toast("Belum ada keputusan untuk diurungkan.", "info");
+    return;
+  }
+  var h = CLEAN.history.pop();
+  if (cleanApplyUndo_(h)){
+    renderCleanReview();
+    return;
+  }
+  CLEAN.filter = "all";
+  CLEAN.q = "";
+  var search = $("cleanSearch");
+  if (search) search.value = "";
+  CLEAN.offset = Math.max(0, Math.floor((Number(h.row_id) - 1) / CLEAN_PAGE_SIZE) * CLEAN_PAGE_SIZE);
+  CLEAN.wantIndex = (Number(h.row_id) - 1) % CLEAN_PAGE_SIZE;
+  CLEAN.pendingUndo = h;
+  loadCleanPage(false);
+}
+
+function scheduleCleanFlush(){
+  clearTimeout(CLEAN_FLUSH_TIMER);
+  CLEAN_FLUSH_TIMER = setTimeout(function(){ flushCleanQueue().catch(function(){}); }, 500);
+}
+
+function flushCleanQueue(){
+  if (!CLEAN) return Promise.resolve();
+  if (CLEAN.syncing) return CLEAN.syncPromise || Promise.resolve();
+  if (!CLEAN.queue.length) return Promise.resolve();
+  CLEAN.syncing = true;
+  renderCleanReview();
+  function send(){
+    if (!CLEAN) return Promise.resolve();
+    if (!CLEAN.queue.length) return Promise.resolve();
+    var batch = CLEAN.queue.splice(0, 200);
+    return api("cleaning.decide", { clean_id: CLEAN.id, decisions: batch }).then(function(res){
+      if (!CLEAN) return;
+      if (CLEAN.meta){
+        CLEAN.meta.kept = Number(res.kept || 0);
+        CLEAN.meta.removed = Number(res.removed || 0);
+        CLEAN.meta.pending = Number(res.pending || 0);
+      }
+      return send();
+    }).catch(function(err){
+      if (CLEAN){
+        CLEAN.queue = batch.concat(CLEAN.queue);
+        CLEAN.syncing = false;
+        renderCleanReview();
+      }
+      toast("Gagal menyimpan keputusan: " + err.message, "err");
+      throw err;
+    });
+  }
+  var promise = send().then(function(){
+    if (!CLEAN) return;
+    CLEAN.syncing = false;
+    if (CLEAN.queue.length) return flushCleanQueue();
+    renderCleanReview();
+  });
+  CLEAN.syncPromise = promise;
+  return promise;
+}
+
+function closeCleanReview(){
+  if (!CLEAN){ closeModal("modalCleanReview"); return; }
+  function finish(){
+    closeModal("modalCleanReview");
+    CLEAN = null;
+    refreshCleanings();
+  }
+  if (CLEAN.queue.length || CLEAN.syncing){
+    toast("Menyimpan keputusan...", "info");
+    flushCleanQueue().then(finish).catch(function(){
+      toast("Keputusan belum tersimpan. Periksa koneksi lalu coba tutup lagi.", "err");
+    });
+    return;
+  }
+  finish();
+}
+
+function cleanFinish(){
+  if (!CLEAN || CLEAN.done || CLEAN.loading || CLEAN.finishing) return;
+  var m = CLEAN.meta || {};
+  var pending = Number(m.pending || 0);
+  var kept = Number(m.kept || 0);
+  var removed = Number(m.removed || 0);
+  if (pending > 0){
+    if (!confirm("Masih ada " + pending + " baris berisiko yang belum diputuskan.\n\n" +
+      "Baris tersebut TIDAK akan masuk hasil. Lanjut finalisasi?")){
+      cleanSetFilter("pending");
+      return;
+    }
+  }
+  if (!confirm("Finalisasi cleaning " + (m.brand || "") + "?\n\n" +
+    "Disimpan: " + kept + " baris\nDihapus: " + removed + " baris\nBelum diputuskan: " + pending + " baris\n\n" +
+    "Tab hasil dan CSV akan dibuat.")) return;
+  CLEAN.finishing = true;
+  renderCleanReview();
+  flushCleanQueue().then(function(){
+    return api("cleaning.finish", { clean_id: CLEAN.id, confirm_pending: true });
+  }).then(function(res){
+    if (!CLEAN) return;
+    CLEAN.done = res;
+    CLEAN.finishing = false;
+    CLEAN.meta = Object.assign({}, CLEAN.meta, res);
+    renderCleanReview();
+    refreshCleanings();
+    toast("Cleaning selesai: " + num(res.kept) + " baris disimpan.", "ok");
+  }).catch(function(err){
+    if (CLEAN) CLEAN.finishing = false;
+    toast("Gagal finalisasi: " + err.message, "err");
+    renderCleanReview();
+  });
+}
+
+function cleanMapsUrl_(row){
+  if (row && row.source_url) return row.source_url;
+  var q = String((row && row.name) || "") + " " + String((row && row.address) || "");
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q.trim());
+}
+
+function renderCleanReview(){
+  if (!CLEAN) return;
+  var m = CLEAN.meta || {};
+  var title = $("cleanReviewTitle");
+  if (title) title.textContent = "· " + (m.brand || "") + (m.total ? " · " + num(m.total) + " baris" : "");
+  var tabLink = $("cleanReviewTab");
+  if (tabLink){
+    if (m.tab_url){ tabLink.href = m.tab_url; tabLink.classList.remove("hidden"); }
+    else tabLink.classList.add("hidden");
+  }
+  renderCleanStats_(m);
+  var body = $("cleanReviewBody");
+  var footer = $("cleanReviewFooter");
+  if (CLEAN.done){
+    if ($("cleanFilters")) $("cleanFilters").innerHTML = "";
+    if (body) body.innerHTML = renderCleanDoneHtml_(CLEAN.done);
+    if (footer) footer.innerHTML = "";
+    icons();
+    return;
+  }
+  if ($("cleanFilters")) $("cleanFilters").innerHTML = renderCleanFiltersHtml_(m);
+  if (CLEAN.loading){
+    if (body) body.innerHTML = '<div class="text-center text-sm text-slate-500 dark:text-slate-400 py-10"><i data-lucide="loader-2" class="w-5 h-5 spin inline-block"></i> Memuat...</div>';
+    if (footer) footer.innerHTML = "";
+    icons();
+    return;
+  }
+  var row = cleanCurrentRow_();
+  if (!row){
+    if (body) body.innerHTML = '<div class="text-center text-sm text-slate-500 dark:text-slate-400 py-10">Tidak ada baris pada filter ini.</div>';
+    if (footer) footer.innerHTML = cleanFooterHtml_(m);
+    icons();
+    return;
+  }
+  if (body){
+    body.innerHTML = cleanCardHtml_(row, m);
+    body.scrollTop = 0;
+  }
+  if (footer) footer.innerHTML = cleanFooterHtml_(m);
+  icons();
+}
+
+function renderCleanStats_(m){
+  var host = $("cleanReviewStats");
+  if (!host) return;
+  var total = Number(m.total || 0);
+  var pending = Number(m.pending || 0);
+  var decided = Math.max(0, total - pending);
+  var pct = total ? Math.round((decided / total) * 100) : 0;
+  function box(label, value, cls){
+    return '<div class="rounded-xl p-2.5 glass-soft"><div class="text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">' + label +
+      '</div><div class="font-bold text-sm ' + (cls || "") + '">' + value + '</div></div>';
+  }
+  host.innerHTML = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2">' +
+    box("total", num(total)) +
+    box("disimpan", num(m.kept), "text-emerald-600 dark:text-emerald-300") +
+    box("dihapus", num(m.removed), "text-rose-600 dark:text-rose-300") +
+    box("belum", num(pending), pending ? "text-amber-600 dark:text-amber-300" : "") +
+    box("berisiko", num(m.risky), "text-amber-600 dark:text-amber-300") +
+    '</div>' +
+    '<div class="h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700/60 overflow-hidden mt-2">' +
+      '<div class="h-full grad-brand" style="width:' + pct + '%"></div></div>' +
+    '<div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1">' +
+      '<span>' + num(decided) + ' / ' + num(total) + ' sudah diputuskan</span><span>' + pct + '%</span></div>';
+}
+
+function renderCleanFiltersHtml_(m){
+  var items = [
+    { key: "all", label: "Semua", count: m.total },
+    { key: "risky", label: "Berisiko", count: m.risky },
+    { key: "pending", label: "Belum", count: m.pending },
+    { key: "keep", label: "Disimpan", count: m.kept },
+    { key: "remove", label: "Dihapus", count: m.removed }
+  ];
+  return items.map(function(it){
+    var active = CLEAN.filter === it.key;
+    return '<button class="chip ' + (active ? "grad-brand text-white" : "glass-soft text-slate-600 dark:text-slate-300") +
+      '" onclick="cleanSetFilter(\'' + it.key + '\')">' + it.label +
+      ' <span class="opacity-70">' + esc(num(it.count)) + '</span></button>';
+  }).join("");
+}
+
+function cleanCardHtml_(row, m){
+  var risks = String(row.risk || "").split(",").filter(Boolean);
+  var riskLabels = risks.map(function(code){
+    if (code === "prefix") return "prefix nama";
+    if (code === "nama") return "blacklist nama";
+    if (code === "kategori") return "kategori non-retail";
+    return code;
+  });
+  var decision = String(row.decision || "pending");
+  var decisionChip = decision === "keep"
+    ? '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><i data-lucide="check" class="w-3 h-3"></i>disimpan</span>'
+    : (decision === "remove"
+      ? '<span class="chip bg-rose-500/15 text-rose-600 dark:text-rose-300"><i data-lucide="x" class="w-3 h-3"></i>dihapus</span>'
+      : '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><i data-lucide="clock" class="w-3 h-3"></i>belum diputuskan</span>');
+  var riskChip = risks.length
+    ? '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300"><i data-lucide="alert-triangle" class="w-3 h-3"></i>berisiko</span>'
+    : '<span class="chip bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><i data-lucide="shield-check" class="w-3 h-3"></i>lolos filter</span>';
+  var border = risks.length ? (decision === "remove" ? "border-rose-500/40" : "border-amber-500/40") : "border-emerald-500/30";
+  var position = (CLEAN.offset + CLEAN.index + 1) + " / " + num(CLEAN.filtered);
+  var maps = cleanMapsUrl_(row);
+  var riskBox = risks.length
+    ? '<div class="rounded-xl p-3 bg-amber-500/10 border border-amber-500/30 text-xs leading-relaxed"><div class="font-semibold text-amber-700 dark:text-amber-300 mb-1">Mengapa berisiko?</div>' +
+      esc(row.reason || riskLabels.join(", ")) + '</div>'
+    : '<div class="rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/30 text-xs leading-relaxed text-emerald-700 dark:text-emerald-300">' +
+      'Lolos filter otomatis (nama diawali brand dan bukan blacklist). Tetap bisa diubah manual.</div>';
+  return '<div class="rounded-2xl border-2 ' + border + ' glass-soft p-4">' +
+    '<div class="flex flex-wrap items-center gap-1.5 mb-3">' + riskChip + decisionChip +
+      '<span class="chip glass-soft">' + esc(position) + '</span>' +
+      (risks.length ? '<span class="chip glass-soft">' + esc(riskLabels.join(", ")) + '</span>' : '') +
+      '<div class="flex-1"></div>' +
+      '<a class="btn glass-soft px-3 py-1.5 text-[11px] inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(maps) + '">' +
+        '<i data-lucide="external-link" class="w-3 h-3"></i>Buka Maps</a>' +
+    '</div>' +
+    '<div class="text-lg sm:text-xl font-extrabold leading-tight break-words">' + esc(row.name || "(tanpa nama)") + '</div>' +
+    '<div class="text-xs text-slate-500 dark:text-slate-400 mt-1 break-words">' + esc(row.category || "-") + '</div>' +
+    '<div class="text-sm mt-3 break-words">' + esc(row.address || "-") + '</div>' +
+    '<div class="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-500 dark:text-slate-400">' +
+      '<span class="chip glass-soft">lat ' + esc(row.latitude || "-") + '</span>' +
+      '<span class="chip glass-soft">lng ' + esc(row.longitude || "-") + '</span>' +
+      (row.source_url ? '<a class="chip glass-soft hover:bg-cyan-500/15" target="_blank" rel="noopener" href="' + esc(row.source_url) + '">Source_URL</a>' : '') +
+    '</div>' +
+    '<div class="mt-3">' + riskBox + '</div>' +
+    '<div class="flex flex-wrap gap-2 mt-4">' +
+      '<button class="btn grad-brand text-white px-4 py-2.5 text-sm inline-flex items-center gap-1" onclick="cleanDecide(\'keep\')"><i data-lucide="check" class="w-4 h-4"></i>Simpan</button>' +
+      '<button class="btn bg-rose-500 text-white px-4 py-2.5 text-sm inline-flex items-center gap-1 hover:bg-rose-600" onclick="cleanDecide(\'remove\')"><i data-lucide="x" class="w-4 h-4"></i>Hapus</button>' +
+      '<button class="btn glass-soft px-4 py-2.5 text-sm inline-flex items-center gap-1" onclick="cleanNext()"><i data-lucide="skip-forward" class="w-4 h-4"></i>Lewati</button>' +
+      '<button class="btn glass-soft px-4 py-2.5 text-sm inline-flex items-center gap-1" ' + (CLEAN.history.length ? "" : "disabled ") + 'onclick="cleanUndo()"><i data-lucide="undo-2" class="w-4 h-4"></i>Urungkan</button>' +
+      '<div class="flex-1"></div>' +
+      '<button class="btn glass-soft px-3 py-2.5 text-sm inline-flex items-center gap-1" ' + (CLEAN.loading ? "disabled " : "") + 'onclick="cleanPrev()"><i data-lucide="chevron-left" class="w-4 h-4"></i>Sebelumnya</button>' +
+      '<button class="btn glass-soft px-3 py-2.5 text-sm inline-flex items-center gap-1" ' + (CLEAN.loading ? "disabled " : "") + 'onclick="cleanNext()">Berikutnya<i data-lucide="chevron-right" class="w-4 h-4"></i></button>' +
+    '</div>' +
+    '<div class="text-[10px] text-slate-500 dark:text-slate-400 mt-3">Shortcut: <b>Y</b> simpan · <b>N</b> hapus · <b>U</b> urungkan · <b>&larr;</b>/<b>&rarr;</b> navigasi. Baris aman memakai konfirmasi sebelum dihapus.</div>' +
+  '</div>';
+}
+
+function cleanFooterHtml_(m){
+  var pending = Number(m.pending || 0);
+  var kept = Number(m.kept || 0);
+  var saving = CLEAN && (CLEAN.syncing || CLEAN.queue.length);
+  return '<div class="flex flex-wrap items-center gap-2">' +
+    '<div class="text-[11px] ' + (saving ? "text-cyan-600 dark:text-cyan-300" : "text-slate-500 dark:text-slate-400") + '">' +
+      (saving ? '<i data-lucide="loader-2" class="w-3 h-3 inline spin"></i> Menyimpan keputusan...' : 'Perubahan tersimpan otomatis.') +
+    '</div>' +
+    '<div class="flex-1"></div>' +
+    (pending ? '<span class="chip bg-amber-500/15 text-amber-600 dark:text-amber-300">' + num(pending) + ' belum diputuskan</span>' : '') +
+    (CLEAN && CLEAN.finishing
+      ? '<button class="btn grad-brand text-white px-4 py-2 text-sm inline-flex items-center gap-1 opacity-70" disabled><i data-lucide="loader-2" class="w-4 h-4 spin"></i>Menyimpan hasil...</button>'
+      : '<button id="cleanFinishBtn" class="btn grad-brand text-white px-4 py-2 text-sm inline-flex items-center gap-1" onclick="cleanFinish()"><i data-lucide="check-check" class="w-4 h-4"></i>Selesai &amp; Buat Hasil (' + num(kept) + ')</button>') +
+  '</div>';
+}
+
+function renderCleanDoneHtml_(res){
+  var warnings = (res && res.warnings) || [];
+  var kept = Number((res && res.kept) || 0);
+  var removed = Number((res && res.removed) || 0);
+  var tabUrl = res && res.final_url ? res.final_url : "";
+  var csvUrl = res && res.csv_url ? res.csv_url : cleanCsvUrl_(tabUrl);
+  return '<div class="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-5">' +
+    '<div class="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-300"><i data-lucide="check-circle-2" class="w-5 h-5"></i>Cleaning selesai</div>' +
+    '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">' +
+      '<div class="glass-soft rounded-xl p-3"><div class="text-[10px] uppercase text-slate-500 dark:text-slate-400">Disimpan</div><div class="font-bold text-emerald-600 dark:text-emerald-300">' + num(kept) + '</div></div>' +
+      '<div class="glass-soft rounded-xl p-3"><div class="text-[10px] uppercase text-slate-500 dark:text-slate-400">Dihapus</div><div class="font-bold text-rose-600 dark:text-rose-300">' + num(removed) + '</div></div>' +
+      '<div class="glass-soft rounded-xl p-3"><div class="text-[10px] uppercase text-slate-500 dark:text-slate-400">Belum</div><div class="font-bold">0</div></div>' +
+    '</div>' +
+    (warnings.length ? '<div class="mt-3 text-xs rounded-xl p-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300">' + warnings.map(esc).join("<br>") + '</div>' : '') +
+    '<div class="flex flex-wrap gap-2 mt-4">' +
+      (tabUrl ? '<a class="btn grad-brand text-white px-4 py-2 text-sm inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(tabUrl) + '"><i data-lucide="table" class="w-4 h-4"></i>Buka Tab Hasil</a>' : '') +
+      (csvUrl ? '<a class="btn glass-soft px-4 py-2 text-sm inline-flex items-center gap-1" target="_blank" rel="noopener" href="' + esc(csvUrl) + '"><i data-lucide="download" class="w-4 h-4"></i>Unduh CSV</a>' : '') +
+      '<div class="flex-1"></div>' +
+      '<button class="btn glass-soft px-4 py-2 text-sm" onclick="closeCleanReview()">Tutup</button>' +
+    '</div>' +
+  '</div>';
+}
+
+document.addEventListener("keydown", function(e){
+  var modal = $("modalCleanReview");
+  if (!CLEAN || !modal || modal.classList.contains("hidden")) return;
+  if (e.key === "Escape"){ closeCleanReview(); return; }
+  var tag = (document.activeElement && document.activeElement.tagName ? document.activeElement.tagName : "").toUpperCase();
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  var key = String(e.key || "").toLowerCase();
+  if (key === "y"){ e.preventDefault(); cleanDecide("keep"); }
+  else if (key === "n"){ e.preventDefault(); cleanDecide("remove"); }
+  else if (key === "u"){ e.preventDefault(); cleanUndo(); }
+  else if (e.key === "ArrowRight"){ e.preventDefault(); cleanNext(); }
+  else if (e.key === "ArrowLeft"){ e.preventDefault(); cleanPrev(); }
+});
+
+window.addEventListener("beforeunload", function(e){
+  if (CLEAN && (CLEAN.queue.length || CLEAN.syncing)){
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+(function(){
+  var drop = $("cleanDrop");
+  if (!drop) return;
+  ["dragenter", "dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add("border-cyan-400", "bg-cyan-500/15");
+    });
+  });
+  ["dragleave", "drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove("border-cyan-400", "bg-cyan-500/15");
+    });
+  });
+  drop.addEventListener("drop", function(e){
+    var file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+    if (file) loadCleanFile(file);
+  });
+})();
 
 function openDetail(jobId){
   var job = JOBS.filter(function(x){ return String(x.job_id) === String(jobId); })[0] || { job_id: jobId, brand: "" };
@@ -1430,6 +2446,9 @@ function actionButtons(j){
   if (!csvUrl && j.result_url) csvUrl = j.result_url.replace("/edit#gid=", "/export?format=csv&gid=");
   if (csvUrl) html += '<a href="' + esc(csvUrl) + '" target="_blank" class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i>CSV</a>';
   html += '<button class="btn px-2 py-1 text-[11px] glass-soft inline-flex items-center gap-1" onclick="openDetail(\'' + esc(j.job_id) + '\')"><i data-lucide="activity" class="w-3 h-3"></i>Detail</button>';
+  if (st !== "running" && st !== "dispatched" && st !== "queued"){
+    html += '<button class="btn px-2 py-1 text-[11px] glass-soft text-rose-500 inline-flex items-center gap-1" onclick="jobDelete(' + idArg + ')"><i data-lucide="trash-2" class="w-3 h-3"></i>Hapus</button>';
+  }
   html += '</div>';
   return html;
 }
@@ -1501,6 +2520,7 @@ function refreshAll(silent){
     .then(function(out){
       JOBS = out[0] || [];
       renderJobs();
+      renderCleanJobOptions();
       renderStatusFilter();
       renderKPI(out[1]);
       detectTransitions(JOBS);
@@ -1718,7 +2738,8 @@ function renderMobileTabs(){
   if (!host) return;
   var items = [
     { v: "builder", label: "Buat Job", icon: "wand-sparkles" },
-    { v: "jobs", label: "Job Saya", icon: "list-checks" }
+    { v: "jobs", label: "Job Saya", icon: "list-checks" },
+    { v: "cleaning", label: "Cleaning", icon: "filter" }
   ];
   if (ME && ME.is_admin) items.push({ v: "admin", label: "Admin", icon: "shield-check" });
   host.innerHTML = items.map(function(it){
@@ -1730,16 +2751,24 @@ function renderMobileTabs(){
   icons();
   applyMobileTab();
 }
-function setMobileTab(name){ MOBILE_TAB = name; renderMobileTabs(); }
+function setMobileTab(name){
+  MOBILE_TAB = name;
+  renderMobileTabs();
+  if (name === "cleaning" && ME){
+    renderCleanJobOptions();
+    refreshCleanings().catch(function(){});
+  }
+}
 function applyMobileTab(){
-  var builder = $("secBuilder"), jobs = $("secJobs"), admin = $("adminBox");
+  var builder = $("secBuilder"), cleaning = $("secCleaning"), jobs = $("secJobs"), admin = $("adminBox");
   if (isDesktop()){
     if (builder) builder.classList.remove("hidden");
+    if (cleaning) cleaning.classList.remove("hidden");
     if (jobs) jobs.classList.remove("hidden");
     if (admin) admin.classList.toggle("hidden", !(ME && ME.is_admin));
     return;
   }
-  var map = { builder: builder, jobs: jobs, admin: admin };
+  var map = { builder: builder, cleaning: cleaning, jobs: jobs, admin: admin };
   Object.keys(map).forEach(function(k){
     var el = map[k];
     if (!el) return;

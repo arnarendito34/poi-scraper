@@ -47,6 +47,47 @@ def parse_env_list(name):
     return value if isinstance(value, list) else []
 
 
+def load_chunks(job_id):
+    """Baca chunks_json (status per chunk) untuk menentukan kelengkapan job."""
+    try:
+        raw = cloud.get_job_field(job_id, "chunks_json") or ""
+        data = json.loads(raw) if raw.strip().startswith("{") else {}
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def load_markers(parts_dir):
+    """Baca marker Chunkstatus_<idx>.json dari artifact (status final per chunk).
+
+    Marker ditulis run_job setelah semua data di-flush. Ini menghindari race
+    read-modify-write pada kolom chunks_json saat beberapa chunk selesai bersamaan.
+    """
+    markers = {}
+    pattern = os.path.join(parts_dir, "**", "Chunkstatus_*.json")
+    for path in glob.glob(pattern, recursive=True):
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"WARN gagal baca marker {path}: {exc}")
+            continue
+        if isinstance(data, dict) and data.get("idx") is not None:
+            markers[str(data["idx"])] = data
+    return markers
+
+
+def entry_status(chunks, markers, entry):
+    """Status chunk: marker artifact (bila ada) lebih dipercaya daripada chunks_json."""
+    if not entry:
+        return ""
+    idx = str(entry.get("idx"))
+    marker = markers.get(idx)
+    if isinstance(marker, dict) and marker.get("status"):
+        return str(marker.get("status")).strip().lower()
+    value = (chunks.get(idx) or {}) if chunks else {}
+    return str(value.get("status") or "").strip().lower()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--spec", required=True)
@@ -100,7 +141,34 @@ def main():
         print(f"WARN fetch tab gagal: {exc}")
 
     finished = time.strftime("%Y-%m-%d %H:%M:%S")
-    status = "done" if args.workflow_result == "success" else "failed"
+    chunks = load_chunks(job_id)
+    markers = load_markers(args.parts)
+    chunks_known = bool(chunks)
+    status_source_known = chunks_known or bool(markers)
+    if markers:
+        print(f"MARKERS {len(markers)} chunk", flush=True)
+    try:
+        current_status = str(cloud.get_job_field(job_id, "status") or "").strip().lower()
+    except Exception:  # noqa: BLE001
+        current_status = ""
+    try:
+        current_overall = float(cloud.get_job_field(job_id, "overall_progress") or 0)
+    except Exception:  # noqa: BLE001
+        current_overall = 0.0
+
+    resume_done = {
+        str(v).strip() for v in (spec.get("resume_done_chunks") or []) if str(v).strip()
+    }
+
+    def entry_done(entry):
+        """Chunk dianggap selesai bila di-skip saat Resume atau status finalnya done."""
+        if not entry:
+            return False
+        if entry.get("chunk") in resume_done:
+            return True
+        if entry.get("prov") and entry.get("prov") in resume_done:
+            return True
+        return entry_status(chunks, markers, entry) == "done"
 
     full = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=s.OUTPUT_COLUMNS)
     full = full.reindex(columns=s.OUTPUT_COLUMNS).fillna("")
@@ -121,18 +189,42 @@ def main():
     # 3) Audit cakupan target: bandingkan target yang direncanakan vs yang ada di hasil.
     coverage_line = ""
     missing_todo = set()
+    incomplete_entries = []
     all_entries = parse_env_list("ALL_ENTRIES")
     todo_entries = parse_env_list("PLAN_ENTRIES") or all_entries
+    if status_source_known and todo_entries:
+        for entry in todo_entries:
+            if not entry or entry.get("chunk") == "__SKIP__":
+                continue
+            if entry_done(entry):
+                continue
+            chunk_status = entry_status(chunks, markers, entry)
+            incomplete_entries.append(
+                (entry.get("chunk") or str(entry.get("idx")), chunk_status or "tidak berjalan")
+            )
+    # Status chunk adalah sumber kebenaran: chunk "done" berarti semua targetnya sudah
+    # diproses, termasuk target yang hasilnya 0 / tersaring (tidak punya baris di tab).
+    complete_by_chunks = None
+    if status_source_known and todo_entries:
+        complete_by_chunks = not incomplete_entries
     if all_entries:
         try:
             profile = s.get_profile(spec.get("country", "indonesia"))
             admin_df = s.load_admin_data(profile)
             expected_all = set()
+            processed_all = set()
             for entry in all_entries:
-                expected_all |= entry_targets(spec, profile, admin_df, entry)
+                targets = entry_targets(spec, profile, admin_df, entry)
+                expected_all |= targets
+                if entry_done(entry):
+                    processed_all |= targets
             expected_todo = set()
+            processed_todo = set()
             for entry in todo_entries:
-                expected_todo |= entry_targets(spec, profile, admin_df, entry)
+                targets = entry_targets(spec, profile, admin_df, entry)
+                expected_todo |= targets
+                if entry_done(entry):
+                    processed_todo |= targets
             present = {
                 str(v).strip() for v in full.get("Query_Target", pd.Series(dtype=str))
                 if str(v).strip()
@@ -143,8 +235,8 @@ def main():
             except Exception:  # noqa: BLE001
                 zeros = set()
             verified = present | {str(z).strip() for z in zeros if str(z).strip()}
-            missing_all = expected_all - verified
-            missing_todo = expected_todo - verified
+            missing_all = expected_all - (verified | processed_all)
+            missing_todo = expected_todo - (verified | processed_todo)
             total_expected = len(expected_all)
             covered = total_expected - len(missing_all)
             coverage_line = f"cakupan target: {covered}/{total_expected}"
@@ -175,38 +267,67 @@ def main():
         # via exportCompleted(), karena service account tidak punya kuota Drive.
         print(f"WARN upload Drive gagal (akan diekspor oleh Apps Script): {exc}")
 
+    status = "done" if args.workflow_result == "success" else "failed"
+    if complete_by_chunks is True:
+        status = "done"
+    elif complete_by_chunks is False:
+        status = "failed"
+    if status == "done" and missing_todo:
+        status = "failed"
+    if status != "done" and current_status in ("paused", "cancelled"):
+        # Jangan timpa status pause/cancel yang diminta pengguna; Resume masih tersedia.
+        status = current_status
+
     progress_text = f"100% ({len(full)} records)"
     if coverage_line:
         progress_text += " · " + coverage_line
+
     fields = {
         "status": status,
-        "progress": progress_text,
-        "overall_progress": 100,
         "finished_at": finished,
         "output_file_id": file_id,
         "output_url": link,
         "result_sheet": result_sheet,
+        "records": len(full),
     }
-    if status == "done" and missing_todo:
-        # Ada target dari chunk yang dijalankan dispatch ini yang belum terverifikasi
-        # (gagal/terhenti). Tandai failed agar tombol Resume bisa mengejarnya.
-        status = "failed"
-        fields["status"] = status
-        fields["error"] = (
-            f"Audit cakupan: {len(missing_todo)} target belum terverifikasi dari chunk yang "
-            "dijalankan. Klik Resume untuk melanjutkan — data tetap tersimpan di tab hasil ini."
-        )
+    if status == "done":
+        fields["progress"] = progress_text
+        fields["overall_progress"] = 100
+    else:
+        safe_pct = min(max(current_overall, 0.0), 100.0)
+        if safe_pct >= 100:
+            safe_pct = 99.9
+        suffix = {"paused": "dijeda", "cancelled": "dibatalkan"}.get(status, "belum tuntas")
+        fields["progress"] = f"{safe_pct:.1f}% ({len(full)} records) · {suffix}"
+        fields["overall_progress"] = safe_pct
+
     if status == "failed":
         # Jangan menimpa pesan error spesifik dari worker bila sudah ada.
         try:
             existing_error = cloud.get_job_field(job_id, "error")
         except Exception:  # noqa: BLE001
             existing_error = ""
-        if not existing_error and "error" not in fields:
-            fields["error"] = (
-                "Sebagian chunk gagal / tidak berjalan (workflow-result=" + args.workflow_result +
-                "). Cek log GitHub Actions."
-            )
+        if not existing_error:
+            parts = []
+            if incomplete_entries:
+                shown = ", ".join(f"{label} ({st})" for label, st in incomplete_entries[:5])
+                if len(incomplete_entries) > 5:
+                    shown += f", +{len(incomplete_entries) - 5} lainnya"
+                parts.append(f"{len(incomplete_entries)} chunk belum selesai: {shown}.")
+            if missing_todo:
+                parts.append(f"{len(missing_todo)} target belum terverifikasi.")
+            if coverage_line:
+                parts.append(coverage_line + ".")
+            if not parts:
+                parts.append(
+                    "Sebagian chunk gagal / tidak berjalan (workflow-result=" + args.workflow_result +
+                    "). Cek log GitHub Actions."
+                )
+            message = " ".join(parts)
+            if missing_todo or incomplete_entries:
+                message += " Klik Resume untuk melanjutkan — data tetap tersimpan di tab hasil ini."
+            fields["error"] = message
+
     cloud.update_job(job_id, fields)
     cloud.append_log(job_id, user, f"selesai: {before} -> {len(full)} records (dedup), status={status}")
     print(f"MERGED {before} -> {len(full)} records | {link}", flush=True)

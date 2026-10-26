@@ -5,6 +5,9 @@ venv/
 output/
 parts/
 *.state.json
+*.review.json
+*.review.json.tmp
+*.review.json.bak-*
 *.log
 *.manifest.json
 Input_*.csv

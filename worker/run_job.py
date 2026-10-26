@@ -373,6 +373,17 @@ def main():
         )
     writer.drain()
     writer.stop()
+    marker = {
+        "idx": chunk_idx,
+        "label": chunk_label,
+        "status": final_status,
+        "records": streamed[0],
+        "targets": manifest.get("targets", 0),
+        "failed_targets": failed_targets,
+    }
+    (out_dir / f"Chunkstatus_{chunk_idx}.json").write_text(
+        json.dumps(marker, ensure_ascii=False), encoding="utf-8"
+    )
     print("CHUNK_DONE " + json.dumps(manifest, ensure_ascii=False), flush=True)
 
 

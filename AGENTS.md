@@ -21,6 +21,8 @@ GitHub Actions: plan → scrape (matrix per provinsi) → merge
 | File | Peran |
 |---|---|
 | `poi_scraper.py` | Engine scraping + job-mode (`run_job`, `spec_to_targets`, `plan_chunks`). Semua filter: relevansi (nama ATAU kategori + alias), radius geo, dedup, jam, phone, dll. |
+| `1. Cleaning.py` | Cleaning otomatis lokal interaktif (prompt file + kompetitor): prefix brand/alias, blacklist kategori untuk `Reason`, output `_clean` 4 kolom + `_removed`. |
+| `2. Check Cleaning.py` | Review manual lokal via browser (stdlib HTTP server): baris aman auto-keep, baris berisiko `pending`, progress `.review.json`, output `_clean/_removed/_pending/_review`. |
 | `worker/plan_chunks.py` | Baca spec → output `idxs` + `entries` (chunk per provinsi × batch ±80 target, `{idx,chunk,total,prov,start,end}`) + `all_entries` (untuk audit cakupan). |
 | `worker/run_job.py` | Jalankan 1 chunk (scope provinsi + irisan target): stream ke tab, progress, kontrol pause/stop, writer thread non-blocking, resume per-target (kolom `Query_Target`). |
 | `worker/merge_parts.py` | Gabung artifact + baris tab, dedup (Place_ID → fallback), audit cakupan target, tulis tab final, upload Drive, tandai status. |
@@ -63,6 +65,8 @@ GitHub Actions: plan → scrape (matrix per provinsi) → merge
 # dari folder root project (yang berisi folder poi-scraper)
 & ".\venv\Scripts\python.exe" -m py_compile "poi-scraper\poi_scraper.py" "poi-scraper\worker\run_job.py" "poi-scraper\worker\merge_parts.py" "poi-scraper\worker\plan_chunks.py" "poi-scraper\worker\cloud.py" "poi-scraper\admin\build_index.py" "poi-scraper\admin\fix_admin_names.py"
 # JS: ekstrak blok <script> dari Index.html lalu node --check; Code.gs juga node --check
+# tool cleaning lokal (dari root repo):
+python -m py_compile "1. Cleaning.py" "2. Check Cleaning.py"
 ```
 - Cek YAML: `python -c "import yaml;yaml.safe_load(open('poi-scraper/.github/workflows/scrape.yml',encoding='utf-8'))"`.
 - Uji cepat target: `spec_to_targets` + `plan_chunks` untuk skenario (mis. level=kota,
@@ -77,7 +81,29 @@ GitHub Actions: plan → scrape (matrix per provinsi) → merge
 Catatan: perubahan **worker/workflow saja** (bukan header/`Code.gs`) cukup langkah 1 (push).
 
 ## Status saat ini
-- Versi aplikasi terakhir: **v2026-10-09.2** (mobile viewport + force-mobile + notifikasi toast).
+- Versi aplikasi terakhir: **v2026-10-26.5** (Cleaning Data di bawah Job Saya, auto-hapus nama
+  non-kompetitor, multi-kompetitor `|`, blacklist opsional; riwayat job & status merge tetap).
+- **Status merge akurat**: chunk `done` berarti semua target sudah diproses (termasuk target 0 hasil /
+  tersaring), jadi job yang tuntas berstatus `done` meski tidak semua target punya baris. `failed`
+  hanya bila ada chunk `partial`/gagal/tidak berjalan. Job gagal/dijeda tidak lagi dipaksa 100%
+  (progress dicap 99,9% dan status `paused`/`cancelled` dipertahankan).
+- **Marker chunk**: `run_job.py` menulis `output/Chunkstatus_<idx>.json` (di-upload sebagai artifact)
+  setelah data di-flush; merge memakai marker ini sebagai sumber status utama dan hanya fallback ke
+  `chunks_json` — menghindari race read-modify-write JSON saat beberapa chunk selesai bersamaan.
+- **Cleaning lokal**: `1. Cleaning.py` versi interaktif (prompt file + kompetitor; output `_clean`
+  4 kolom + `_removed` + `Reason`; blacklist kategori hanya memengaruhi `Reason`, blacklist nama
+  belum dipakai) dan `2. Check Cleaning.py` (review manual web stdlib di `127.0.0.1:8765`, progress
+  `.review.json`, output `_clean/_removed/_pending/_review`). `2. Check` sudah diuji `py_compile`,
+  `node --check`, API, dan UI Chromium.
+- **Cleaning dashboard**: section berada di bawah Job Saya; nama yang tidak diawali kompetitor
+  langsung `remove` (tidak masuk pending), sedangkan risiko blacklist tetap `pending`. Beberapa
+  kompetitor dipisahkan `|` / koma / titik koma (mis. `Alfamart | Alfa`). `blacklist_names` dan
+  `blacklist_categories` opsional (kosong = tanpa filter), kategori dicocokkan ke `Category_geocode`.
+  Tombol **Muat bawaan** mengambil `Jaya` + daftar kategori dari `Code.gs` (action
+  `cleaning.defaults`).
+- **Hapus riwayat job**: tombol Hapus di Job Saya (non-aktif) menghapus baris `Jobs`, log terkait,
+  tab `Result_*`, dan file CSV Drive; job queued/running/dispatched harus dihentikan dulu. Log
+  besar dibersihkan sekali tulis (bukan per baris) agar tidak kena batas 6 menit.
 - Matrix workflow **diubah ke 1 kunci** (`idx`) + `name` eksplisit karena error GitHub
   "Unable to create a unique name" pada matrix multi-kunci. Merge tahan tanpa artifact.
 - Scraper: target gagal **dilewati** (bukan abort); abort hanya bila 8 gagal berturut-turut.
@@ -100,6 +126,7 @@ Catatan: perubahan **worker/workflow saja** (bukan header/`Code.gs`) cukup langk
 - Dedup "first wins" (belum merge-field/record terbaik).
 - Keamanan: spreadsheet di-share Viewer ke user → tab `Users` berisi API key plaintext (P0).
 - Stuck job belum ada heartbeat/timeout otomatis.
+- Review manual: riwayat undo hanya di memori (hilang saat restart); progress keputusan tetap tersimpan.
 - Scope raksasa (mis. expand seluruh Indonesia = 83.422 target) tetap berat: ±200 chunk ×
   (±4-5 jam di cap guard) — sebaiknya pecah per pulau/provinsi dari dashboard.
 - `jobs.get` mengembalikan baris mentah (sudah disanitasi di `getJob_`).

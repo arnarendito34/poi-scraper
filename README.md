@@ -16,6 +16,8 @@ Google Sheet (Users, Jobs, Logs)  <--update--  GitHub Actions (Playwright)
 
 ```
 poi_scraper.py              # scraper engine + job-mode (Indonesia & Philippines)
+1. Cleaning.py              # cleaning otomatis data kompetitor (lokal)
+2. Check Cleaning.py        # review manual via browser lokal
 admin/build_index.py        # generator dropdown
 admin/id_index.json         # index Indonesia
 admin/ph_index.json         # index Philippines
@@ -53,6 +55,23 @@ Contoh `spec.json`:
 }
 ```
 `mode`: `unit` (unit terpilih) atau `expand` (pecah ke unit terkecil). `tile`: 0/1/2 = 1 / 3x3 / 5x5 query per target.
+
+### Cleaning data hasil scraping
+
+Cleaning otomatis (interaktif; nama harus diawali brand; hasil bersih 4 kolom):
+```
+python "1. Cleaning.py"
+```
+- Masukkan path CSV, lalu nama kompetitor/alias (pisahkan koma, titik koma, atau `|`; mis. `Alfamart | Alfa`).
+- `_clean.csv` = data lolos; `_removed.csv` = data dibuang + `Reason`.
+
+Review manual via browser (baris berisiko tidak dihapus sebelum diputuskan):
+```
+python "2. Check Cleaning.py" -i hasil.csv -b Alfamart
+```
+- Browser terbuka ke `http://127.0.0.1:8765/`; gunakan `--no-browser` jika tidak ingin otomatis.
+- Output: `_clean.csv`, `_removed.csv`, `_pending.csv` (jika ada), dan `_review.csv` (audit).
+- Progress tersimpan di `hasil.csv.review.json`; gunakan `--reset` untuk mulai ulang.
 
 Regenerate index dropdown: `python admin/build_index.py`
 

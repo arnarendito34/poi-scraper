@@ -194,7 +194,7 @@ Kolom di tabel **Job Saya**:
 | Target | Wilayah yang sedang diproses |
 | Records | Jumlah POI yang sudah tersimpan |
 | ETA | Perkiraan sisa waktu |
-| Aksi | **Logs** · **Tab** · **Preview** · **CSV** · **Detail** |
+| Aksi | **Logs** · **Tab** · **Preview** · **CSV** · **Detail** · **Hapus** (job non-aktif) |
 
 Tombol **Detail** membuka modal berisi: status, progress total, posisi chunk,
 records/listings, ETA, **statistik filter gabungan semua chunk**
@@ -229,7 +229,7 @@ layout satu kolom + kartu + modal full-screen, plus `zoom` agar teks terbaca.
 
 Tabel menyegar otomatis setiap 10 detik.
 
-### 4.1 Kontrol job (Stop / Pause / Resume)
+### 4.1 Kontrol & hapus job (Stop / Pause / Resume / Hapus)
 Tombol kontrol muncul pada baris job sesuai status:
 - **Pause** (job `running`): worker memeriksa kolom `control` tiap ±15–30 dtk, lalu berhenti
   **rapi** setelah target yang sedang berjalan. Status jadi `paused`.
@@ -237,9 +237,12 @@ Tombol kontrol muncul pada baris job sesuai status:
   Data yang sudah ter-stream tetap aman di tab hasil.
 - **Resume** (job `paused`/`cancelled`/`failed`): menjalankan ulang job; chunk yang sudah
   `done` dilewati, dan hasil lama di tab digabung + dedup saat merge, sehingga tidak hilang.
+- **Hapus** (job non-aktif): menghapus permanen baris di `Jobs`, log job, tab `Result_*`,
+  dan file CSV Drive. Job `queued`/`running`/`dispatched` harus dihentikan dulu.
 
 Progres gabungan memakai kolom `overall_progress` (dihitung dari posisi chunk), jadi label
-`Chunk x/y · z%` mencerminkan total, bukan 100% per chunk.
+`Chunk x/y · z%` mencerminkan total, bukan 100% per chunk. Job yang belum tuntas tidak
+dipaksa menampilkan 100%.
 
 ---
 
@@ -329,6 +332,7 @@ curl -s -X POST "$WEBAPP_URL" -H "Content-Type: application/json" -d '{
 | `jobs.pause` | `job_id` | Minta pause (berhenti rapi setelah target berjalan) |
 | `jobs.resume` | `job_id` | Lanjutkan job paused/cancelled/failed (lewati chunk selesai) |
 | `jobs.cancel` | `job_id` | Batalkan run di GitHub + status `cancelled` |
+| `jobs.delete` | `job_id` | Hapus permanen job + tab hasil + CSV Drive + log (job non-aktif) |
 | `jobs.rerunZero` | `job_id` | Buat job baru hanya untuk target 0 hasil |
 | `admin.createKey` | `email`, `quota` | Hanya admin (buat/reset key) |
 | `admin.getKey` | `email` | Hanya admin; ambil API key untuk disalin |
@@ -367,9 +371,11 @@ Respon sukses: `{"ok":true,"data":{...}}` · gagal: `{"ok":false,"error":"..."}`
      **8 target gagal berturut-turut** (indikasi blokir/limit) → status `failed` dengan
      pesan jelas + checkpoint (bisa di-Resume).
    - `merge_parts.py` menggabungkan semua chunk + baris tab, dedup, menulis ulang tab,
-     upload CSV Drive, lalu **audit cakupan**: target yang direncanakan vs yang ada di hasil
-     (target 0-hasil dikecualikan). Bila ada target dari chunk yang dijalankan belum
-     terverifikasi → `status=failed` + pesan agar klik **Resume** (data tetap di tab yang sama).
+     upload CSV Drive, lalu **audit cakupan**. Status job mengikuti **status chunk**:
+     chunk `done` = semua target sudah diproses (termasuk target 0 hasil / tersaring),
+     sehingga job yang tuntas tetap `done` meski tidak semua target punya baris. `failed`
+     hanya bila ada chunk `partial`/gagal/tidak berjalan; klik **Resume** untuk mengejar
+     target yang belum terverifikasi (data tetap di tab yang sama).
      Bila `plan` gagal atau tidak ada artifact, merge tetap jalan dan menuliskan **alasan** ke kolom `error`.
 4. Dashboard memantau lewat kolom-kolom tersebut.
 
@@ -394,7 +400,7 @@ Respon sukses: `{"ok":true,"data":{...}}` · gagal: `{"ok":false,"error":"..."}`
 | **`output_url` kosong / CSV tidak ada** | Penyebab umum: **service account tidak punya kuota Drive pribadi**. Solusi: CSV diekspor oleh **Apps Script** (akun Anda). Set `DRIVE_FOLDER_ID` (Script Property / `setDriveFolder(id)`) dan pastikan trigger `exportCompleted` aktif (`setupTriggers()`), atau jalankan `exportCompleted()` manual. Tombol **csv** di dashboard juga bisa mengunduh langsung dari tab hasil (export URL) sebelum file Drive siap. |
 | **Progress format lama `x% (n records) \| a/b`** | Worker di GitHub masih versi lama → `git push origin main` lalu jalankan job baru. |
 | **Job kena "maximum execution time of 5h50m"** | Terjadi pada alur lama (1 chunk = 1 provinsi besar). Sudah diperbaiki: chunk dipecah ±80 target. Push repo terbaru, lalu **Resume** job — target yang sudah masuk tab dilewati otomatis. |
-| **Job `failed` dengan pesan "Audit cakupan: N target belum terverifikasi"** | Sebagian target dari chunk yang dijalankan belum punya baris (gagal/terhenti). Klik **Resume**; hanya target tersebut yang dikerjakan, hasil tetap di tab yang sama. |
+| **Job `failed` dengan pesan "N chunk belum selesai"** | Ada chunk `partial`/gagal/tidak berjalan. Klik **Resume**; hanya target yang belum terverifikasi yang dikerjakan, hasil tetap di tab yang sama. Bila semua chunk `done` namun dulu sempat `failed` karena audit lama, klik **Resume** sekali agar status menjadi `done`. |
 | **Perubahan kode tidak muncul** | Redeploy: **Deploy → Manage deployments → Edit → New version**. |
 
 ---
@@ -423,6 +429,8 @@ Respon sukses: `{"ok":true,"data":{...}}` · gagal: `{"ok":false,"error":"..."}`
 
 ```
 poi_scraper.py         # scraper + job-mode
+1. Cleaning.py         # cleaning otomatis lokal
+2. Check Cleaning.py   # review manual lokal via browser
 admin/build_index.py   # generator index dropdown
 admin/fix_admin_names.py # perbaiki nama wilayah CSV admin (sekali jalan)
 admin/id_index.json    # index Indonesia (provinsi/kota/kecamatan)
@@ -437,3 +445,62 @@ apps-script/           # Code.gs, Index.html, appsscript.json
 DOKUMENTASI.md         # file ini
 README.md              # panduan deploy
 ```
+
+---
+
+## 12. Cleaning data lokal
+
+Dua tool lokal untuk membersihkan CSV hasil scraping. Keduanya memakai **pandas** yang sudah ada di
+`requirements.txt`; tidak menambah dependency web. Jalankan dari folder yang berisi CSV, atau berikan
+path lengkap. Nama file mengandung spasi, jadi gunakan tanda kutip.
+
+### 12.1 `1. Cleaning.py` — otomatis
+
+Versi ini interaktif: jalankan, lalu masukkan nama file CSV dan nama kompetitor. Aturan utama: nama
+harus diawali brand/kompetitor (case-insensitive, spasi/tanda hubung fleksibel). Baris yang tidak
+lolos prefix dibuang; `Reason` menjelaskan alasannya.
+
+```
+python "1. Cleaning.py"
+```
+
+- Prompt pertama: nama/path file CSV.
+- Prompt kedua: nama kompetitor/alias, pisahkan dengan koma, titik koma, atau `|`
+  (mis. `Alfamart | Alfa`).
+- Output: `<input>_clean.csv` (4 kolom: Name, Address, Longitude, Latitude) dan
+  `<input>_removed.csv` (semua kolom asli + `Reason`). File output menimpa nama yang sama.
+- Blacklist kategori memengaruhi `Reason` hanya untuk baris yang tidak lolos prefix. Blacklist nama
+  saat ini belum dipakai untuk menyaring baris.
+- Tidak ada flag CLI (`-i`, `-c`, `--dry-run`, `--force`, dll.) pada versi ini; encoding/delimiter
+  mengikuti pembacaan CSV default pandas.
+
+### 12.2 `2. Check Cleaning.py` — review manual
+
+Untuk kasus yang tidak boleh menghapus nama secara otomatis. Baris aman (nama diawali brand dan
+tidak kena blacklist) langsung `keep`; baris berisiko masuk `pending` dan tidak akan dihapus sampai
+diputuskan.
+
+```
+python "2. Check Cleaning.py" -i hasil.csv -b Alfamart
+python "2. Check Cleaning.py" -i hasil.csv -b "Alfamart|Alfamidi" --review all
+```
+
+- Browser lokal `http://127.0.0.1:8765/` (port acak bila bentrok). `--no-browser` untuk membuka
+  manual; `--port` / `--host` bila perlu. Jangan pakai `--host 0.0.0.0` di jaringan yang tidak
+  dipercaya.
+- Shortcut: `Y` simpan, `N` hapus, `U` undo, `O` buka Maps, `/` cari, panah kiri/kanan navigasi,
+  `?` bantuan, `Esc` tutup dialog.
+- Baris dianggap berisiko bila: nama tidak diawali brand, nama memuat blacklist nama, kategori
+  memuat blacklist kategori, atau nama kosong.
+- Output: `<input>_clean.csv`, `<input>_removed.csv` (+`Reason`), `<input>_pending.csv` (hanya jika
+  ada yang belum diputuskan), `<input>_review.csv` (audit `_decision`, `_risk`, `_reason`).
+- Default hasil mempertahankan semua kolom input; centang **Format ringkas** saat finalisasi
+  (atau `--compact` agar tercentang default) untuk hasil bersih 4 kolom.
+- Progress otomatis di `<input>.review.json`; perubahan input/opsi membuat progress lama diabaikan
+  dan dibackup `.bak-<timestamp>`. `--reset` mulai dari awal. File output memakai nama baru
+  (`_2`, `_3`, ...) kecuali `--force`.
+- Finalisasi boleh dilakukan saat masih ada pending: baris tersebut masuk `_pending.csv` dan
+  **tidak** dihapus.
+- `--blacklist-names` / `--blacklist-categories` untuk override; `--output-dir` / `--progress`
+  untuk mengatur lokasi file.
+- `--review all` mewajibkan semua baris dicek; jika `-b` kosong, mode ini otomatis aktif.
